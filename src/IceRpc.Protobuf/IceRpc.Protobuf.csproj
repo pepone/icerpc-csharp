@@ -1,0 +1,19 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net7.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="IceRpc" Version="0.1.0" />
+    <PackageReference Include="Google.Protobuf" Version="3.24.1" />
+  </ItemGroup>
+  <!-- NuGet package contents-->
+  <ItemGroup>
+    <Content Include="..\..\LICENSE" Pack="true" PackagePath="\" />
+    <Content Include="README.md" Pack="true" PackagePath="\" />
+    <None Include="..\..\build\icerpc-icon.png" Pack="true" PackagePath="\" />
+  </ItemGroup>
+</Project>

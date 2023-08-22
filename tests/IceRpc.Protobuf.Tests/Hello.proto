@@ -1,0 +1,12 @@
+// Copyright (c) ZeroC, Inc.
+
+syntax = "proto3";
+option csharp_namespace = "Hello";
+
+import "google/protobuf/empty.proto";
+
+package hello;
+
+service Greeter {
+  rpc ping (google.protobuf.Empty) returns (google.protobuf.Empty);
+}
