@@ -7,6 +7,6 @@ import "google/protobuf/empty.proto";
 
 package hello;
 
-service Greeter {
-  rpc ping (google.protobuf.Empty) returns (google.protobuf.Empty);
+service MyOperations {
+  rpc unaryOpWithEmptyParamAndReturn (google.protobuf.Empty) returns (google.protobuf.Empty);
 }

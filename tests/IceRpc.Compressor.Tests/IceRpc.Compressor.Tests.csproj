@@ -1,5 +1,5 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-
+  <Import Project="../../tools/IceRpc.Slice.Tools/src/IceRpc.Slice.Tools/IceRpc.Slice.Tools.props" />
   <ItemGroup>
     <PackageReference Include="coverlet.collector" Version="6.0.0">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
@@ -12,9 +12,6 @@
     </PackageReference>
     <PackageReference Include="NUnit3TestAdapter" Version="4.5.0" />
     <PackageReference Include="NUnit" Version="3.13.3" />
-  </ItemGroup>
-
-  <ItemGroup>
     <ProjectReference Include="..\..\src\IceRpc\IceRpc.csproj" />
     <ProjectReference Include="..\..\src\IceRpc.Slice\IceRpc.Slice.csproj" />
     <ProjectReference Include="..\..\src\IceRpc.Compressor\IceRpc.Compressor.csproj" />
@@ -25,4 +22,5 @@
     <!-- Missing XML comment for publicly visible type or member. -->
     <NoWarn>CS1591</NoWarn>
   </PropertyGroup>
+  <Import Project="../../tools/IceRpc.Slice.Tools/src/IceRpc.Slice.Tools/IceRpc.Slice.Tools.targets" />
 </Project>

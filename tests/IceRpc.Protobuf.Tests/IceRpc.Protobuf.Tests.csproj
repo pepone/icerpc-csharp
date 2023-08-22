@@ -1,7 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-
+  <Import Project="$(MSBuildThisFileDirectory)..\..\tools\protobuf\IceRpc.Protobuf.Tools\IceRpc.Protobuf.Tools.props" />
   <PropertyGroup>
-    <TargetFramework>net7.0</TargetFramework>
     <!-- Missing XML comment for publicly visible type or member. -->
     <NoWarn>CS1591</NoWarn>
   </PropertyGroup>
@@ -23,12 +22,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\IceRpc.Protobuf\IceRpc.Protobuf.csproj" />
+    <ProjectReference Include="..\IceRpc.Tests.Common\IceRpc.Tests.Common.csproj" />
   </ItemGroup>
-
-  <Target Name="Info">
-    <Message Text="ProtoFiles: @(ProtoFile)" Importance="high" />
-    <Message Text="ProtoFiles: @(None)" Importance="high" />
-  </Target>
-  <Import Project="$(MSBuildThisFileDirectory)..\..\tools\protobuf\IceRpc.Protobuf.Tools\IceRpc.Protobuf.Tools.props" />
   <Import Project="$(MSBuildThisFileDirectory)..\..\tools\protobuf\IceRpc.Protobuf.Tools\IceRpc.Protobuf.Tools.targets" />
 </Project>

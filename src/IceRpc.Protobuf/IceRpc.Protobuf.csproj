@@ -1,13 +1,11 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-
   <PropertyGroup>
-    <TargetFramework>net7.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
+    <Description>IceRPC Protobuf integration package</Description>
+    <AssemblyTitle>$(Description)</AssemblyTitle>
+    <PackageTags>IceRPC;RPC;Protobuf</PackageTags>
   </PropertyGroup>
-
   <ItemGroup>
-    <PackageReference Include="IceRpc" Version="0.1.0" />
+    <ProjectReference Include="..\..\src\IceRpc\IceRpc.csproj" />
     <PackageReference Include="Google.Protobuf" Version="3.24.1" />
   </ItemGroup>
   <!-- NuGet package contents-->
