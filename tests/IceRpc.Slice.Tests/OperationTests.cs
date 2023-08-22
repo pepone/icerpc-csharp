@@ -9,7 +9,7 @@ using System.IO.Pipelines;
 namespace IceRpc.Slice.Tests;
 
 [Parallelizable(scope: ParallelScope.All)]
-public class OperationTests
+public partial class OperationTests
 {
     [Test]
     public void Operation_without_parameters_and_void_return()
@@ -664,7 +664,8 @@ public class OperationTests
         }
     }
 
-    private class MyOperationsAService : Service, IMyOperationsAService
+    [SliceService]
+    private partial class MyOperationsAService : IMyOperationsAService
     {
         public PingableProxy? ReceivedProxy;
 
@@ -798,7 +799,8 @@ public class OperationTests
         public ValueTask OpWithTrailingOptionalValuesAndStreamAsync(int p1, int? p2, int p3, int? p4, int? p5, IAsyncEnumerable<byte?> p6, IFeatureCollection features, CancellationToken cancellationToken) => default;
     }
 
-    private sealed class MyDerivedOperationsAService : MyOperationsAService, IMyDerivedOperationsAService
+    [SliceService]
+    private sealed partial class MyDerivedOperationsAService : MyOperationsAService, IMyDerivedOperationsAService
     {
         public ValueTask OpDerivedWithoutParametersAndVoidReturnAsync(
             IFeatureCollection features,
@@ -810,7 +812,8 @@ public class OperationTests
             CancellationToken cancellationToken) => new(p);
     }
 
-    private sealed class MyTaggedOperationsService : Service, IMyTaggedOperationsService
+    [SliceService]
+    private sealed partial class MyTaggedOperationsService : IMyTaggedOperationsService
     {
         internal int? X { get; set; }
         internal int Y { get; set; }
@@ -825,12 +828,14 @@ public class OperationTests
         }
     }
 
-    private sealed class MyTaggedOperationsV0Service : Service, IMyTaggedOperationsV0Service
+    [SliceService]
+    private sealed partial class MyTaggedOperationsV0Service : IMyTaggedOperationsV0Service
     {
         public ValueTask OpAsync(int y, IFeatureCollection features, CancellationToken cancellationToken) => default;
     }
 
-    private sealed class MyTaggedOperationsReadOnlyMemoryParamsService : Service, IMyTaggedOperationsReadOnlyMemoryParamsService
+    [SliceService]
+    private sealed partial class MyTaggedOperationsReadOnlyMemoryParamsService : IMyTaggedOperationsReadOnlyMemoryParamsService
     {
         internal int[] X { get; set; } = Array.Empty<int>();
         internal int[]? Y { get; set; }
