@@ -1,5 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <Import Project="..\..\..\tools\IceRpc.Slice.Tools\src\IceRpc.Slice.Tools\IceRpc.Slice.Tools.props" />or
+  <Import Project="..\..\..\tools\IceRpc.Slice.Tools\src\IceRpc.Slice.Tools\IceRpc.Slice.Tools.props" />
   <ItemDefinitionGroup>
     <SliceFile>
       <AdditionalOptions>--rpc none</AdditionalOptions>
