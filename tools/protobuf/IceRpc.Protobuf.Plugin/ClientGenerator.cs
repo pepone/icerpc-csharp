@@ -93,7 +93,7 @@ public partial struct {clientImplementationName} : I{service.Name.ToPascalCase()
     /// <summary>Constructs a client from an invoker and a service address.</summary>
     /// <param name=""invoker"">The invocation pipeline of the proxy.</param>
     /// <param name=""serviceAddress"">The service address. <see langword=""null"" /> is equivalent to <see cref=""DefaultServiceAddress"" />.</param>
-    {clientImplementationName}(
+    public {clientImplementationName}(
         IceRpc.IInvoker invoker,
         IceRpc.ServiceAddress? serviceAddress = null)
     {{

@@ -15,7 +15,7 @@ public partial class OperationTests
     {
         // Arrange
         var invoker = new ColocInvoker(new MyOperationsService());
-        var client = new MyOperationsClient(invoker, null);
+        var client = new MyOperationsClient(invoker);
 
         // Act/Assert
         Assert.That(async () => await client.UnaryOpWithEmptyParamAndReturnAsync(new Empty()), Throws.Nothing);
