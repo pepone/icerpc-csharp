@@ -102,8 +102,7 @@ internal sealed class Parser
                     serviceMethods,
                     hasBaseServiceDefinition,
                     implementIceObject: IsIceObject(classSymbol.AllInterfaces),
-                    isSealed: classSymbol.IsSealed,
-                    typeIds: GetTypeIds(classSymbol));
+                    isSealed: classSymbol.IsSealed);
                 serviceDefinitions.Add(serviceClass);
 
                 static bool IsAllowedKind(SyntaxKind kind) =>
@@ -124,56 +123,6 @@ internal sealed class Parser
             }
         }
         return serviceDefinitions;
-    }
-
-    private SortedSet<string> GetTypeIds(INamedTypeSymbol classSymbol)
-    {
-        var typeIds = new SortedSet<string>();
-
-        if (GetTypeId(_iceObjectService!) is string iceObjectTypeId)
-        {
-            typeIds.Add(iceObjectTypeId);
-        }
-
-        foreach (INamedTypeSymbol interfaceSymbol in classSymbol.AllInterfaces)
-        {
-            if (GetTypeId(interfaceSymbol!) is string typeId)
-            {
-                typeIds.Add(typeId);
-            }
-        }
-
-        return typeIds;
-
-        string? GetTypeId(INamedTypeSymbol symbol)
-        {
-            if (GetAttribute(symbol, _typeIdAttribute!) is not AttributeData attribute)
-            {
-                return null;
-            }
-
-            foreach (TypedConstant typedConstant in attribute.ConstructorArguments)
-            {
-                if (typedConstant.Kind == TypedConstantKind.Error)
-                {
-                    // if a compilation error was found, no need to keep evaluating other args
-                    return null;
-                }
-            }
-
-            ImmutableArray<TypedConstant> items = attribute.ConstructorArguments;
-            switch (items.Length)
-            {
-                case 1:
-                    Debug.Assert(items[0].Type?.SpecialType is SpecialType.System_String);
-                    return (string?)items[0].Value;
-                default:
-                    Debug.Assert(false, "Unexpected number of arguments in attribute constructor.");
-                    break;
-            }
-
-            return null;
-        }
     }
 
     private AttributeData? GetAttribute(ISymbol symbol, INamedTypeSymbol attributeSymbol)
