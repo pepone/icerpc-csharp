@@ -18,9 +18,6 @@ internal class ServiceClass : ContainerDefinition
     /// <summary>Gets a value indicating whether the service is a sealed type.</summary>
     internal bool IsSealed { get; }
 
-    /// <summary>Gets the service type IDs.</summary>
-    internal SortedSet<string> TypeIds { get; }
-
     /// <summary>Gets the service methods implemented by the service.</summary>
     /// <remarks>It doesn't include the service methods implemented by the base service definition if any.</remarks>
     internal IReadOnlyList<ServiceMethod> ServiceMethods { get; }
@@ -32,8 +29,7 @@ internal class ServiceClass : ContainerDefinition
         IReadOnlyList<ServiceMethod> serviceMethods,
         bool hasBaseServiceClass,
         bool implementIceObject,
-        bool isSealed,
-        SortedSet<string> typeIds)
+        bool isSealed)
         : base(name, keyword)
     {
         ContainingNamespace = containingNamespace;
@@ -41,6 +37,5 @@ internal class ServiceClass : ContainerDefinition
         HasBaseServiceClass = hasBaseServiceClass;
         IsSealed = isSealed;
         ImplementIceObject = implementIceObject;
-        TypeIds = typeIds;
     }
 }

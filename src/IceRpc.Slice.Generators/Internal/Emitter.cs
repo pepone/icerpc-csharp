@@ -61,55 +61,11 @@ switch (request.Operation)
                     "return new(new IceRpc.OutgoingResponse(request, IceRpc.StatusCode.NotImplemented));";
             }
 
-            string typeIds = "";
-            foreach (string typeId in serviceClass.TypeIds)
-            {
-                typeIds += @$"""{typeId}"",{_newLine}";
-            }
-            typeIds = typeIds.TrimEnd(',', '\n', '\r', ' ');
-
-            string dispatcherClass;
-            if (serviceClass.ImplementIceObject)
-            {
-                dispatcherClass = $@"
-partial {serviceClass.Keyword} {serviceClass.Name} : IceRpc.IDispatcher, IceRpc.Slice.Ice.IIceObjectService
-{{
-    private static readonly global::System.Collections.Generic.IReadOnlySet<string> _typeIds =
-        new global::System.Collections.Generic.SortedSet<string>()
-        {{
-            {typeIds.WithIndent("            ")}
-        }};
-
-    {methodModifier} global::System.Threading.Tasks.ValueTask<IceRpc.OutgoingResponse> DispatchAsync(
-        IceRpc.IncomingRequest request,
-        global::System.Threading.CancellationToken cancellationToken)
-    {{
-        {dispatcherBlock.WithIndent("        ")}
-    }}
-
-    /// <inheritdoc/>
-    {methodModifier} global::System.Threading.Tasks.ValueTask<global::System.Collections.Generic.IEnumerable<string>> IceIdsAsync(
-        IceRpc.Features.IFeatureCollection features,
-        global::System.Threading.CancellationToken cancellationToken) =>
-        new(_typeIds);
-
-    /// <inheritdoc/>
-    {methodModifier} global::System.Threading.Tasks.ValueTask<bool> IceIsAAsync(
-        string id,
-        IceRpc.Features.IFeatureCollection features,
-        global::System.Threading.CancellationToken cancellationToken) =>
-        new(_typeIds.Contains(id));
-
-    /// <inheritdoc/>
-    {methodModifier} global::System.Threading.Tasks.ValueTask IcePingAsync(
-        IceRpc.Features.IFeatureCollection features,
-        global::System.Threading.CancellationToken cancellationToken) => default;
-}}";
-            }
-            else
-            {
-                dispatcherClass = $@"
-partial {serviceClass.Keyword} {serviceClass.Name} : IceRpc.IDispatcher
+            string baseType = serviceClass.ImplementIceObject ?
+                    " IceRpc.IDispatcher, IceRpc.Slice.Ice.IIceObjectService" :
+                    " IceRpc.IDispatcher";
+            string dispatcherClass = $@"
+partial {serviceClass.Keyword} {serviceClass.Name} : {baseType}
 {{
     {methodModifier} global::System.Threading.Tasks.ValueTask<IceRpc.OutgoingResponse> DispatchAsync(
         IceRpc.IncomingRequest request,
@@ -118,7 +74,6 @@ partial {serviceClass.Keyword} {serviceClass.Name} : IceRpc.IDispatcher
         {dispatcherBlock.WithIndent("        ")}
     }}
 }}";
-            }
 
             string container = dispatcherClass;
             ContainerDefinition? containerDefinition = serviceClass;
