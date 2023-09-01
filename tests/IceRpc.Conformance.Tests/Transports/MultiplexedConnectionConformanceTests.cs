@@ -85,56 +85,32 @@ public abstract class MultiplexedConnectionConformanceTests
     }
 
     [Test]
-    [Ignore("See #3604")]
-    public async Task Completing_a_local_or_remote_stream_allows_accepting_a_new_one(
-        [Values(true, false)] bool bidirectional,
-        [Values(true, false)] bool abort,
-        [Values(true, false)] bool remote)
+    public async Task Completing_an_unidirectional_stream_allows_accepting_a_new_one(
+        [Values(true, false)] bool abort)
     {
         // Arrange
         IServiceCollection serviceCollection = CreateServiceCollection();
         serviceCollection.AddOptions<MultiplexedConnectionOptions>().Configure(
-            bidirectional ?
-                options => options.MaxBidirectionalStreams = 1 :
                 options => options.MaxUnidirectionalStreams = 1);
 
         await using ServiceProvider provider = serviceCollection.BuildServiceProvider(validateScopes: true);
         var sut = provider.GetRequiredService<ClientServerMultiplexedConnection>();
         await sut.AcceptAndConnectAsync();
 
-        IMultiplexedStream clientStream1 = await sut.Client.CreateStreamAsync(bidirectional, default);
+        IMultiplexedStream clientStream1 = await sut.Client.CreateStreamAsync(bidirectional: false, default);
         await clientStream1.Output.WriteAsync(_oneBytePayload, default);
 
         IMultiplexedStream serverStream1 = await sut.Server.AcceptStreamAsync(default);
-        ReadResult readResult = await serverStream1.Input.ReadAsync();
-        serverStream1.Input.AdvanceTo(readResult.Buffer.End);
 
-        ValueTask<IMultiplexedStream> clientStream2Task = sut.Client.CreateStreamAsync(bidirectional, default);
-        if (bidirectional)
-        {
-            serverStream1.Output.Complete();
-            clientStream1.Input.Complete();
-        }
+        ValueTask<IMultiplexedStream> clientStream2Task = sut.Client.CreateStreamAsync(bidirectional: false, default);
+
         await Task.Delay(50);
 
         // Act
         bool stream2TaskIsCompleted = clientStream2Task.IsCompleted;
-        if (remote)
-        {
-            serverStream1.Input.Complete(abort ? new Exception() : null);
-        }
-        else
-        {
-            clientStream1.Output.Complete(abort ? new Exception() : null);
 
-            if (!abort)
-            {
-                // Consume the last stream frame. This will trigger the serverStream1 reads completion and allow the
-                // second stream to be accepted.
-                readResult = await serverStream1.Input.ReadAsync();
-                serverStream1.Input.AdvanceTo(readResult.Buffer.End);
-            }
-        }
+        // Completing the remote input will allow a new stream to be accepted.
+        serverStream1.Input.Complete(abort ? new Exception() : null);
 
         // Assert
 
@@ -143,6 +119,50 @@ public abstract class MultiplexedConnectionConformanceTests
 
         // The second stream is accepted after the first stream completion.
         Assert.That(async () => await clientStream2Task, Throws.Nothing);
+
+        // Cleanup
+        clientStream1.Output.Complete();
+    }
+
+    [Test]
+    public async Task Completing_a_bidirectional_stream_allows_accepting_a_new_one(
+        [Values(true, false)] bool abort)
+    {
+        // Arrange
+        IServiceCollection serviceCollection = CreateServiceCollection();
+        serviceCollection.AddOptions<MultiplexedConnectionOptions>().Configure(
+            options => options.MaxBidirectionalStreams = 1);
+
+        await using ServiceProvider provider = serviceCollection.BuildServiceProvider(validateScopes: true);
+        var sut = provider.GetRequiredService<ClientServerMultiplexedConnection>();
+        await sut.AcceptAndConnectAsync();
+
+        IMultiplexedStream clientStream1 = await sut.Client.CreateStreamAsync(bidirectional: true, default);
+        await clientStream1.Output.WriteAsync(_oneBytePayload, default);
+
+        IMultiplexedStream serverStream1 = await sut.Server.AcceptStreamAsync(default);
+
+        ValueTask<IMultiplexedStream> clientStream2Task = sut.Client.CreateStreamAsync(bidirectional: true, default);
+
+        await Task.Delay(50);
+
+        // Act
+        bool stream2TaskIsCompleted = clientStream2Task.IsCompleted;
+        // Completing the remote input and output will allow a new stream to be accepted.
+        serverStream1.Input.Complete(abort ? new Exception() : null);
+        serverStream1.Output.Complete(abort ? new Exception() : null);
+
+        // Assert
+
+        // The second stream wasn't accepted before the first stream completion.
+        Assert.That(stream2TaskIsCompleted, Is.False);
+
+        // The second stream is accepted after the first stream completion.
+        Assert.That(async () => await clientStream2Task, Throws.Nothing);
+
+        // Cleanup
+        clientStream1.Output.Complete();
+        clientStream1.Input.Complete();
     }
 
     [Test]
@@ -537,8 +557,7 @@ public abstract class MultiplexedConnectionConformanceTests
     }
 
     [Test]
-    [Ignore("See #3604")]
-    public async Task Max_bidirectional_streams([Values] bool closeRemoteOutputWithError)
+    public async Task Max_bidirectional_streams([Values] bool abort)
     {
         var serviceCollection = CreateServiceCollection();
         serviceCollection.AddOptions<MultiplexedConnectionOptions>().Configure(
@@ -558,31 +577,19 @@ public abstract class MultiplexedConnectionConformanceTests
             async () => await newStreamsTask.WaitAsync(TimeSpan.FromMilliseconds(100)),
             Throws.InstanceOf<TimeoutException>());
 
-        // Close the local output and consume the data on the remote input.
-        streams.Local.Output.Complete();
-        ReadResult readResult = await streams.Remote.Input.ReadAsync();
-        streams.Remote.Input.AdvanceTo(readResult.Buffer.End);
-
         Assert.That(
             async () => await newStreamsTask.WaitAsync(TimeSpan.FromMilliseconds(100)),
             Throws.InstanceOf<TimeoutException>());
 
-        if (closeRemoteOutputWithError)
-        {
-            // Close the remote stream output with an error.
-            streams.Remote.Output.Complete(new Exception());
-        }
-        else
-        {
-            // Close the remote output and consume the data on the local input.
-            streams.Remote.Output.Complete();
+        // Completing the remote output and input will allow a new stream to be accepted.
+        streams.Remote.Output.Complete(abort ? new Exception() : null);
+        streams.Remote.Input.Complete(abort ? new Exception() : null);
 
-            readResult = await streams.Local.Input.ReadAsync();
-            streams.Local.Input.AdvanceTo(readResult.Buffer.End);
-        }
-
-        // At this point, the new stream should be accepted even if the local stream input is not completed yet.
         using var _ = await newStreamsTask;
+
+        // Cleanup
+        streams.Local.Output.Complete();
+        streams.Local.Input.Complete();
     }
 
     /// <summary>Verifies that connection cannot exceed the bidirectional stream max count.</summary>
@@ -817,6 +824,46 @@ public abstract class MultiplexedConnectionConformanceTests
 
         stream1.Input.Complete();
         stream1.Output.Complete();
+    }
+
+    /// <summary>This test verifies that stream flow control prevents a new stream from being created under the
+    /// following conditions:
+    ///
+    /// - the max stream count is reached
+    /// - writes are closed on the remote streams
+    /// - data on the remote stream is not consumed</summary>
+    [Test]
+    public async Task Stream_creation_hangs_until_remote_data_is_consumed()
+    {
+        // Arrange
+        IServiceCollection serviceCollection = CreateServiceCollection();
+        serviceCollection.AddOptions<MultiplexedConnectionOptions>().Configure(
+            options => options.MaxBidirectionalStreams = 1);
+
+        await using ServiceProvider provider = serviceCollection.BuildServiceProvider(validateScopes: true);
+        var sut = provider.GetRequiredService<ClientServerMultiplexedConnection>();
+        await sut.AcceptAndConnectAsync();
+
+        IMultiplexedStream clientStream1 = await sut.Client.CreateStreamAsync(bidirectional: true, default);
+        await clientStream1.Output.WriteAsync(_oneBytePayload, default);
+
+        IMultiplexedStream serverStream1 = await sut.Server.AcceptStreamAsync(default);
+        serverStream1.Output.Complete();
+
+        // At this point the server stream input is not completed. CreateStreamAsync should block because the data isn't
+        // consumed.
+
+        // Act/Assert
+        Assert.That(
+            async () =>
+            {
+                using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(100));
+
+                // This should throw OperationCanceledException because reads from the remote stream accepted above are
+                // not closed (the remote stream still has non-consumed buffered data).
+                _ = await sut.Client.CreateStreamAsync(bidirectional: true, cts.Token);
+            },
+            Throws.InstanceOf<OperationCanceledException>());
     }
 
     /// <summary>Creates the service collection used for multiplexed transport conformance tests.</summary>

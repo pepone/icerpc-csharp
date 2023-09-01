@@ -93,7 +93,7 @@ flowchart LR
     subgraph pipeline [Dispatch pipeline]
         direction LR
         lm[Logger\nmiddleware] --> dm[Deadline\nmiddleware] --> service --> dm --> lm
-        
+
     end
     connection[network\nconnection] -- request --> lm
     connection -- response --- lm
@@ -202,7 +202,7 @@ in-memory transport for testing). Future releases may add additional transports.
 [ci-badge]: https://github.com/icerpc/icerpc-csharp/actions/workflows/dotnet.yml/badge.svg
 [ci-home]: https://github.com/icerpc/icerpc-csharp/actions/workflows/dotnet.yml
 [custom]: https://docs.testing.zeroc.com/slice/language-guide/custom-types
-[Documentation]: https://docs.testing.zeroc.com/docs
+[Documentation]: https://docs.testing.zeroc.com
 [Getting started]: https://docs.testing.zeroc.com/getting-started
 [Examples]: examples
 [HTTP/3]: https://en.wikipedia.org/wiki/HTTP/3
