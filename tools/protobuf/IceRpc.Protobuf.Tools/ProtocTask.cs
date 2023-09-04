@@ -89,7 +89,7 @@ public class ProtocTask : ToolTask
     /// <inheritdoc/>
     protected override string GetWorkingDirectory() => WorkingDirectory;
 
-    /// <summary> Process the diagnostics emitted by the slicec-cs compiler and log them with the MSBuild logger.
+    /// <summary> Process the diagnostics emitted by the protoc compiler and log them with the MSBuild logger.
     /// </summary>
     protected override void LogEventsFromTextOutput(string singleLine, MessageImportance messageImportance) =>
         Log.LogError(singleLine, messageImportance);

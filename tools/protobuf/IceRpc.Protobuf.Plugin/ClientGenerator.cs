@@ -76,6 +76,9 @@ public partial interface I{service.Name.ToPascalCase()}
         string clientImplementationName = $"{service.Name.ToPascalCase()}Client";
 
         return @$"
+/// <summary>Makes invocations on a remote IceRPC service. This remote service must implement Protobuf service
+/// <c>{service.Name}</c>.</summary>
+/// <remarks>The IceRPC protobuf plugin generated this client struct from the Protobuf service <c>{service.Name}.</remarks>
 public partial struct {clientImplementationName} : I{service.Name.ToPascalCase()}
 {{
     /// <summary>Gets the default service address for services that implement Protobuf service {service.FullName}.

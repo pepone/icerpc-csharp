@@ -24,7 +24,7 @@ internal class ServiceGenerator
 ";
 
             // Add a static method for each service method, the implementation calls the
-            // abstract method and creates the outogin respose.
+            // abstract method and creates the outgoing respose.
             methods += $@"
     [ProtobufOperation(""{method.Name}"")]
     [global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]
