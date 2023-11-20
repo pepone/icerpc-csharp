@@ -1,0 +1,20 @@
+// Copyright (c) ZeroC, Inc.
+
+module ZeroC::Slice::Tests
+
+struct BoolS {
+	b: bool,
+	values: Sequence<bool>
+}
+
+struct Int32S {
+	values: Sequence<int32>
+}
+
+struct StringS {
+	values: Sequence<string>
+}
+
+struct MyFixedLengthEnumS {
+	values: Sequence<MyFixedLengthEnum>
+}

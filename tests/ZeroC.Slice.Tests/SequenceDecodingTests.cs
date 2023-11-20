@@ -9,6 +9,53 @@ namespace ZeroC.Slice.Tests;
 [Parallelizable(scope: ParallelScope.All)]
 public class SequenceDecodingTests
 {
+    [Test]
+    public void Decode_bool_sequence(
+        [Values(SliceEncoding.Slice1, SliceEncoding.Slice2)] SliceEncoding encoding)
+    {
+        bool[] expected = Enumerable.Range(0, 256).Select(i => i % 2 == 0).ToArray();
+        var buffer = new MemoryBufferWriter(new byte[1024 * 1024]);
+        var encoder = new SliceEncoder(buffer, encoding);
+        encoder.EncodeSize(expected.Length);
+        foreach (bool value in expected)
+        {
+            encoder.EncodeBool(value);
+        }
+        var sut = new SliceDecoder(buffer.WrittenMemory, encoding);
+
+        bool[] result = sut.DecodeSequence((ref SliceDecoder decoder) => decoder.DecodeBool());
+
+        Assert.That(result, Is.EqualTo(expected));
+        Assert.That(sut.Consumed, Is.EqualTo(buffer.WrittenMemory.Length));
+    }
+
+    [Test]
+    public void Decode_bool_sequence_with_invalid_values(
+        [Values(SliceEncoding.Slice1, SliceEncoding.Slice2)] SliceEncoding encoding)
+    {
+        var buffer = new MemoryBufferWriter(new byte[1024 * 1024]);
+        var encoder = new SliceEncoder(buffer, encoding);
+        encoder.EncodeSize(3);
+        encoder.WriteByteSpan(new byte[] { 0x00, 0x01, 0x02 });
+
+        Assert.Throws<InvalidDataException>(
+            () =>
+            {
+                var sut = new SliceDecoder(buffer.WrittenMemory, encoding);
+                sut.DecodeSequence((ref SliceDecoder decoder) => decoder.DecodeBool());
+                /*sut.DecodeSequence(
+                    (bool element) =>
+                    {
+                        var elementSpan = MemoryMarshal.CreateReadOnlySpan(ref element, 1);
+                        var elementValue = MemoryMarshal.Cast<bool, byte>(elementSpan);
+                        if (elementValue[0] != 0 && elementValue[0] != 1)
+                        {
+                            throw new InvalidDataException("The value is out of the bool type accepted range.");
+                        }
+                    });*/
+            });
+    }
+
     /// <summary>Tests <see cref="SliceDecoderExtensions.DecodeSequence{T}(ref SliceDecoder, Action{T}?)" /> with a
     /// fixed-size numeric value type.</summary>
     /// <param name="encoding">The <see cref="SliceEncoding" /> to use for the decoding.</param>

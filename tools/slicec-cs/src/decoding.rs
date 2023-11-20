@@ -214,9 +214,7 @@ pub fn decode_sequence(sequence_ref: &TypeRef<Sequence>, namespace: &str, encodi
     if has_cs_type_attribute {
         let arg: Option<String> = match element_type.concrete_type() {
             Types::Primitive(primitive)
-                if primitive.is_numeric_or_bool()
-                    && primitive.fixed_wire_size().is_some()
-                    && !element_type.is_optional =>
+                if primitive.is_numeric() && primitive.fixed_wire_size().is_some() && !element_type.is_optional =>
             {
                 // We always read an array even when mapped to a collection, as it's expected to be
                 // faster than decoding the collection elements one by one.
@@ -301,7 +299,7 @@ decoder.DecodeSequenceOfOptionals(
         )
     } else {
         match element_type.concrete_type() {
-            Types::Primitive(primitive) if primitive.fixed_wire_size().is_some() => {
+            Types::Primitive(primitive) if primitive.is_numeric() && primitive.fixed_wire_size().is_some() => {
                 write!(
                     code,
                     "decoder.DecodeSequence<{}>()",
