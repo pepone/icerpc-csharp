@@ -109,6 +109,55 @@ public class SlicTransportSslAuthenticationTests
         }
     }
 
+    [Test]
+    public async Task Slic_server_sends_certificate_chain()
+    {
+        // Arrange
+        using var rootCA = new X509Certificate2("cacert1.der");
+        using var serverCertificate = X509Certificate2.CreateFromPemFile("s_rsa_cai1_pub.pem", "s_rsa_cai1_priv.pem");
+        var intermediates = new X509Certificate2Collection();
+        intermediates.ImportFromPemFile("s_rsa_cai1_pub.pem");
+        Assert.That(intermediates.Count, Is.EqualTo(2));
+        await using ServiceProvider provider = CreateServiceCollection()
+            .AddSingleton(
+                new SslServerAuthenticationOptions
+                {
+                    ServerCertificateContext = SslStreamCertificateContext.Create(serverCertificate, intermediates)
+                })
+            .AddSingleton(
+                new SslClientAuthenticationOptions
+                {
+                    RemoteCertificateValidationCallback = (sender, certificate, chain, errors) =>
+                    {
+                        using var customChain = new X509Chain();
+                        customChain.ChainPolicy.RevocationMode = X509RevocationMode.NoCheck;
+                        customChain.ChainPolicy.DisableCertificateDownloads = true;
+                        customChain.ChainPolicy.TrustMode = X509ChainTrustMode.CustomRootTrust;
+                        if (chain is not null)
+                        {
+                            foreach (var element in chain.ChainElements)
+                            {
+                                customChain.ChainPolicy.ExtraStore.Add(element.Certificate);
+                            }
+                        }
+                        customChain.ChainPolicy.CustomTrustStore.Add(rootCA);
+                        return customChain.Build((X509Certificate2)certificate!);
+                    }
+                }).BuildServiceProvider(validateScopes: true);
+
+        var sut = provider.GetRequiredService<ClientServerMultiplexedConnection>();
+        var listener = provider.GetRequiredService<IListener<IMultiplexedConnection>>();
+
+        // The connect attempt starts the TLS handshake.
+        var clientConnectTask = sut.Client.ConnectAsync(default);
+
+        // Act/Assert
+        await using IMultiplexedConnection serverConnection = (await listener.AcceptAsync(default)).Connection;
+        var serverConnectTask = serverConnection.ConnectAsync(default);
+        await clientConnectTask;
+        await serverConnectTask;
+    }
+
     private static IServiceCollection CreateServiceCollection() =>
         new ServiceCollection()
             .AddMultiplexedTransportTest(new Uri("icerpc://127.0.0.1:0/"))
