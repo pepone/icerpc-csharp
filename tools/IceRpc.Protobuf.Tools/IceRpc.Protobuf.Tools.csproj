@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8" ?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
   <Import Project="$(MSBuildThisFileDirectory)../../build/IceRpc.Version.props" />
   <Import Project="$(MSBuildThisFileDirectory)../../build/Extract.targets" />
@@ -21,8 +21,7 @@
     <RepositoryType>git</RepositoryType>
     <PackageIcon>icerpc-icon.png</PackageIcon>
     <Copyright>Copyright (c) ZeroC, Inc.</Copyright>
-    <Description
-    >Provides tools to generate C# code from Protobuf definitions; includes support for MSBuild projects.</Description>
+    <Description>Provides tools to generate C# code from Protobuf definitions; includes support for MSBuild projects.</Description>
     <DevelopmentDependency>true</DevelopmentDependency>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
     <PackageTags>IceRPC;RPC;MSBuild;Protobuf</PackageTags>
@@ -33,17 +32,13 @@
     <NoWarn>NU5100</NoWarn>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Microsoft.Build.Framework" Version="17.8.3" />
-    <PackageReference Include="Microsoft.Build.Utilities.Core" Version="17.8.3" />
+    <PackageReference Include="Microsoft.Build.Framework" Version="17.11.4" />
+    <PackageReference Include="Microsoft.Build.Utilities.Core" Version="17.11.4" />
     <PackageReference Include="Google.Protobuf.Tools" Version="$(NuGetProtobufVersion)" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="../Common/IceRpc.CaseConverter.Internal/Converter.cs" />
-    <None
-      Include="../IceRpc.BuildTelemetry.Reporter/bin/$(Configuration)/net8.0/*"
-      Exclude="../IceRpc.BuildTelemetry.Reporter/bin/$(Configuration)/net8.0/*.exe"
-      Visible="false"
-    >
+    <None Include="../IceRpc.BuildTelemetry.Reporter/bin/$(Configuration)/net8.0/*" Exclude="../IceRpc.BuildTelemetry.Reporter/bin/$(Configuration)/net8.0/*.exe" Visible="false">
       <PackagePath>tools/</PackagePath>
       <Pack>true</Pack>
     </None>
@@ -73,11 +68,7 @@
     </None>
     <None Include="$(IntermediateOutputPath)/$(AssemblyName).dll" Pack="true" PackagePath="tasks/" Visible="false" />
     <!-- Use the compilers from this source build. -->
-    <None
-      Include="../IceRpc.ProtocGen/bin/$(Configuration)/net8.0/*"
-      Exclude="../IceRpc.ProtocGen/bin/$(Configuration)/net8.0/*.exe"
-      Visible="false"
-    >
+    <None Include="../IceRpc.ProtocGen/bin/$(Configuration)/net8.0/*" Exclude="../IceRpc.ProtocGen/bin/$(Configuration)/net8.0/*.exe" Visible="false">
       <PackagePath>tools/</PackagePath>
       <Pack>true</Pack>
     </None>
@@ -91,67 +82,32 @@
       <GoogleProtobufFiles Include="$(protoc_tools)/google/protobuf/*.*" />
       <ProtocCompiler Include="$(protoc_tools)/windows_x64/protoc.exe" Prefix="windows_x64" />
       <ProtocCompiler Include="$(protoc_tools)/linux_x64/protoc" Prefix="linux_x64" />
-      <ProtocCompiler
-        Include="$(MSBuildThisFileDirectory)obj/protoc-$(ProtobufVersion)-linux-aarch_64/bin/protoc"
-        Prefix="linux_arm64"
-      />
+      <ProtocCompiler Include="$(MSBuildThisFileDirectory)obj/protoc-$(ProtobufVersion)-linux-aarch_64/bin/protoc" Prefix="linux_arm64" />
       <ProtocCompiler Include="$(protoc_tools)/macosx_x64/protoc" Prefix="macos_x64" />
-      <ProtocCompiler
-        Include="$(MSBuildThisFileDirectory)obj/protoc-$(ProtobufVersion)-osx-aarch_64/bin/protoc"
-        Prefix="macos_arm64"
-      />
+      <ProtocCompiler Include="$(MSBuildThisFileDirectory)obj/protoc-$(ProtobufVersion)-osx-aarch_64/bin/protoc" Prefix="macos_arm64" />
     </ItemGroup>
 
     <!-- Download and extract macOS and Linux ARM64 binaries from protobuf release package. The compilers for ARM64
            are not included with Google.Protobuf NuGet package.
       -->
-    <DownloadFile
-      SourceUrl="https://github.com/protocolbuffers/protobuf/releases/download/v$(ProtobufVersion)/protoc-$(ProtobufVersion)-osx-aarch_64.zip"
-      DestinationFolder="$(MSBuildThisFileDirectory)obj"
-      Condition="!Exists('$(MSBuildThisFileDirectory)obj/protoc-$(ProtobufVersion)-osx-aarch_64.zip')"
-    />
+    <DownloadFile SourceUrl="https://github.com/protocolbuffers/protobuf/releases/download/v$(ProtobufVersion)/protoc-$(ProtobufVersion)-osx-aarch_64.zip" DestinationFolder="$(MSBuildThisFileDirectory)obj" Condition="!Exists('$(MSBuildThisFileDirectory)obj/protoc-$(ProtobufVersion)-osx-aarch_64.zip')" />
 
-    <DownloadFile
-      SourceUrl="https://github.com/protocolbuffers/protobuf/releases/download/v$(ProtobufVersion)/protoc-$(ProtobufVersion)-linux-aarch_64.zip"
-      DestinationFolder="$(MSBuildThisFileDirectory)obj"
-    />
+    <DownloadFile SourceUrl="https://github.com/protocolbuffers/protobuf/releases/download/v$(ProtobufVersion)/protoc-$(ProtobufVersion)-linux-aarch_64.zip" DestinationFolder="$(MSBuildThisFileDirectory)obj" />
 
     <!-- We cannot use MSBuild Unzip task because it doesn't preserve the executable permissions, we use our custom
         extract task instead. -->
-    <ExtractTask
-      SourceFiles="$(MSBuildThisFileDirectory)obj/protoc-$(ProtobufVersion)-osx-aarch_64.zip"
-      DestinationFolder="$(MSBuildThisFileDirectory)obj/protoc-$(ProtobufVersion)-osx-aarch_64"
-      Condition="!Exists('$(MSBuildThisFileDirectory)obj/protoc-$(ProtobufVersion)-osx-aarch_64')"
-    />
+    <ExtractTask SourceFiles="$(MSBuildThisFileDirectory)obj/protoc-$(ProtobufVersion)-osx-aarch_64.zip" DestinationFolder="$(MSBuildThisFileDirectory)obj/protoc-$(ProtobufVersion)-osx-aarch_64" Condition="!Exists('$(MSBuildThisFileDirectory)obj/protoc-$(ProtobufVersion)-osx-aarch_64')" />
 
-    <ExtractTask
-      SourceFiles="$(MSBuildThisFileDirectory)obj/protoc-$(ProtobufVersion)-linux-aarch_64.zip"
-      DestinationFolder="$(MSBuildThisFileDirectory)obj/protoc-$(ProtobufVersion)-linux-aarch_64"
-      Condition="!Exists('$(MSBuildThisFileDirectory)obj/protoc-$(ProtobufVersion)-linux-aarch_64')"
-    />
+    <ExtractTask SourceFiles="$(MSBuildThisFileDirectory)obj/protoc-$(ProtobufVersion)-linux-aarch_64.zip" DestinationFolder="$(MSBuildThisFileDirectory)obj/protoc-$(ProtobufVersion)-linux-aarch_64" Condition="!Exists('$(MSBuildThisFileDirectory)obj/protoc-$(ProtobufVersion)-linux-aarch_64')" />
 
     <!-- Make protoc compiler writeable, otherwise Copy task fails when running inside a container -->
-    <Exec
-      Command="chmod +w $(MSBuildThisFileDirectory)obj/protoc-$(ProtobufVersion)-osx-aarch_64/bin/protoc"
-      Condition="Exists('$(MSBuildThisFileDirectory)obj/protoc-$(ProtobufVersion)-osx-aarch_64/bin/protoc') AND $([MSBuild]::IsOSPlatform('Linux'))"
-    />
+    <Exec Command="chmod +w $(MSBuildThisFileDirectory)obj/protoc-$(ProtobufVersion)-osx-aarch_64/bin/protoc" Condition="Exists('$(MSBuildThisFileDirectory)obj/protoc-$(ProtobufVersion)-osx-aarch_64/bin/protoc') AND $([MSBuild]::IsOSPlatform('Linux'))" />
 
-    <Exec
-      Command="chmod +w $(MSBuildThisFileDirectory)obj/protoc-$(ProtobufVersion)-linux-aarch_64/bin/protoc"
-      Condition="Exists('$(MSBuildThisFileDirectory)obj/protoc-$(ProtobufVersion)-linux-aarch_64/bin/protoc') AND $([MSBuild]::IsOSPlatform('Linux'))"
-    />
+    <Exec Command="chmod +w $(MSBuildThisFileDirectory)obj/protoc-$(ProtobufVersion)-linux-aarch_64/bin/protoc" Condition="Exists('$(MSBuildThisFileDirectory)obj/protoc-$(ProtobufVersion)-linux-aarch_64/bin/protoc') AND $([MSBuild]::IsOSPlatform('Linux'))" />
 
-    <Copy
-      SourceFiles="@(GoogleProtobufFiles)"
-      DestinationFolder="$(MSBuildThisFileDirectory)obj/tools/google/protobuf"
-      SkipUnchangedFiles="true"
-    />
+    <Copy SourceFiles="@(GoogleProtobufFiles)" DestinationFolder="$(MSBuildThisFileDirectory)obj/tools/google/protobuf" SkipUnchangedFiles="true" />
 
-    <Copy
-      SourceFiles="@(ProtocCompiler)"
-      DestinationFiles="@(ProtocCompiler->'$(MSBuildThisFileDirectory)obj/tools/%(Prefix)/%(Filename)%(Extension)')"
-      SkipUnchangedFiles="true"
-    />
+    <Copy SourceFiles="@(ProtocCompiler)" DestinationFiles="@(ProtocCompiler->'$(MSBuildThisFileDirectory)obj/tools/%(Prefix)/%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
   </Target>
   <Import Project="$(MSBuildThisFileDirectory)../../build/Sign.targets" />
 </Project>

@@ -12,21 +12,18 @@
     <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="8.0.*" />
     <!-- Required to avoid NuGet Audit error: see #4032 -->
     <PackageReference Include="System.Text.Json" Version="8.0.*" />
-    <PackageReference Include="NUnit.Analyzers" Version="3.9.0">
+    <PackageReference Include="NUnit.Analyzers" Version="4.3.0">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="NUnit" Version="3.14.0" />
+    <PackageReference Include="NUnit" Version="4.2.2" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="../../src/IceRpc/IceRpc.csproj" ExactVersion="true" />
     <ProjectReference Include="../../src/IceRpc.Transports.Coloc/IceRpc.Transports.Coloc.csproj" ExactVersion="true" />
     <ProjectReference Include="../../src/IceRpc.Logger/IceRpc.Logger.csproj" ExactVersion="true" />
-    <ProjectReference
-      Include="../../src/IceRpc.Extensions.DependencyInjection/IceRpc.Extensions.DependencyInjection.csproj"
-      ExactVersion="true"
-    />
+    <ProjectReference Include="../../src/IceRpc.Extensions.DependencyInjection/IceRpc.Extensions.DependencyInjection.csproj" ExactVersion="true" />
   </ItemGroup>
 
   <!-- NuGet package contents-->
