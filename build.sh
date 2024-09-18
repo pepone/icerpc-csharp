@@ -90,8 +90,7 @@ publish()
     run_command dotnet "pack" "-nr:false"$version_property "-c" "$dotnet_config" -o ../../packages
     popd
 
-    rm -f nuget.config
-    dotnet new nugetconfig -o .
+    dotnet new nugetconfig -o . --force
     dotnet nuget add source --configfile nuget.config -n "IceRPC Local Source" ./packages
 }
 

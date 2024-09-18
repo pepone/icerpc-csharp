@@ -126,10 +126,19 @@ Windows
 build.cmd -publish
 ```
 
-This command creates all the NuGet packages and publishes them to your local `global-packages` source.
+This command creates all the NuGet packages, and generates a `nuget.cofig` file in the root directory. The
+`nuget.config` adds the `packages` directory as a NuGet package source available for projects within the
+repository.
 
 > **Note**
 > This is an essential step if you want to use a local build with the [examples](examples).
+
+> **Note**
+> Clear the local packages cache to ensure you are using the latest build packages
+
+```shell
+dotnet nuget locals --clear all
+```
 
 ### Slice tools
 

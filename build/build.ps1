@@ -107,7 +107,7 @@ function Publish($config) {
     RunCommand "dotnet" @('pack', '-nr:false', $versionProperty, '--configuration', $dotnetConfiguration, '-o', '..\..\packages')
     Pop-Location
 
-    RunCommand "dotnet" @('new', 'nugetconfig', '-o', '.')
+    RunCommand "dotnet" @('new', 'nugetconfig', '-o', '.', '--force')
     RunCommand "dotnet" @('nuget', 'add', "source", '--configfile', 'nuget.config', '-n', 'IceRPC Local Source', '.\packages')
 }
 
