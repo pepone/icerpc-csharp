@@ -16,7 +16,9 @@ usage()
     echo ""
     echo "Actions (defaults to --build):"
     echo "  --build                Build the IceRPC assemblies and the slicec-cs compiler."
-    echo "  --publish              Creates and publishes the IceRPC NuGet packages to the local global-packages source."
+    echo "  --publish              Creates the IceRPC NuGet packages and configures a local NuGet source for the packages."
+    echo "                         The package source is configured only for projects within the source repository see the"
+    echo "                         generated nuget.config file in the repository top-level souce folder."
     echo "  --clean                Clean all build artifacts."
     echo "  --coverage             Generate code coverage report from the tests runs."
     echo "                         Requires reportgenerator command from https://github.com/danielpalme/ReportGenerator"
@@ -76,21 +78,21 @@ publish()
 {
     build
 
+    mkdir -p packages
+
     pushd tools
-    run_command dotnet "pack" "-nr:false"$version_property "-c" "$dotnet_config"
+    run_command dotnet "pack" "-nr:false"$version_property "-c" "$dotnet_config" "-o" "../packages"
     popd
 
-    run_command dotnet "pack" "-nr:false"$version_property "-c" "$dotnet_config"
+    run_command dotnet "pack" "-nr:false"$version_property "-c" "$dotnet_config" "-o" "./packages"
 
     pushd src/IceRpc.Templates
-    run_command dotnet "pack" "-nr:false"$version_property "-c" "$dotnet_config"
+    run_command dotnet "pack" "-nr:false"$version_property "-c" "$dotnet_config" -o ../../packages
     popd
 
-    global_packages=$(dotnet nuget locals -l global-packages)
-    global_packages=${global_packages/global-packages: /""}
-    run_command rm "-rf" "$global_packages/zeroc.slice/$version" "$global_packages/icerpc/$version" "$global_packages"/icerpc.*/"$version"
-    run_command dotnet "nuget" "push" "tools/**/$dotnet_config/*.$version.nupkg" "--source" "$global_packages"
-    run_command dotnet "nuget" "push" "src/**/$dotnet_config/*.$version.nupkg" "--source" "$global_packages"
+    rm -f nuget.config
+    dotnet new nugetconfig -o .
+    dotnet nuget add source --configfile nuget.config -n "IceRPC Local Source" ./packages
 }
 
 code_coverage()

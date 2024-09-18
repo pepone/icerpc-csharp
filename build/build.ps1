@@ -77,7 +77,9 @@ function Get-Help() {
     Write-Host ""
     Write-Host "Actions (defaults to -build):"
     Write-Host "  -build                    Build the IceRPC assemblies and the slicec-cs compiler."
-    Write-Host "  -publish                  Creates and publishes the IceRPC NuGet packages to the local global-packages source."
+    Write-Host "  -publish                  Creates the IceRPC NuGet packages and configures a local NuGet source for the packages."
+    Write-Host "                            The package source is configured only for projects within the source repository see the"
+    Write-Host "                            generated nuget.config file in the repository top-level souce folder."
     Write-Host "  -clean                    Clean all build artifacts."
     Write-Host "  -coverage                 Generate code coverage report from the tests runs."
     Write-Host "                            Requires reportgenerator command from https://github.com/danielpalme/ReportGenerator"
@@ -96,27 +98,17 @@ function Publish($config) {
     $dotnetConfiguration = DotnetConfiguration($config)
 
     Push-Location "tools"
-    RunCommand "dotnet"  @('pack', $versionProperty, '--configuration', $dotnetConfiguration)
+    RunCommand "dotnet"  @('pack', $versionProperty, '--configuration', $dotnetConfiguration, '-o', '..\packages')
     Pop-Location
 
-    RunCommand "dotnet"  @('pack', '-nr:false', $versionProperty, '--configuration', $dotnetConfiguration)
+    RunCommand "dotnet"  @('pack', '-nr:false', $versionProperty, '--configuration', $dotnetConfiguration, '-o', 'packages')
 
     Push-Location "src\IceRpc.Templates"
-    RunCommand "dotnet" @('pack', '-nr:false', $versionProperty, '--configuration', $dotnetConfiguration)
+    RunCommand "dotnet" @('pack', '-nr:false', $versionProperty, '--configuration', $dotnetConfiguration, '-o', '..\..\packages')
     Pop-Location
 
-    $global_packages = dotnet nuget locals -l global-packages
-    $global_packages = $global_packages.replace("global-packages: ", "")
-    Remove-Item $global_packages"\IceRpc.Slice.Tools\$version" -Recurse -Force -ErrorAction Ignore
-    $packages = Get-Childitem -Path "." -Include *.$version.nupkg -Recurse
-    foreach ($package in $packages)
-    {
-        $package_name = (Get-Item $package).Basename
-        $package_name = $package_name.Substring(0, $package_name.Length - ".$version".Length)
-        Remove-Item $global_packages"\$package_name\$version" -Recurse -Force -ErrorAction Ignore
-    }
-    RunCommand "dotnet" @('nuget', 'push', "tools\**\$dotnetConfiguration\*.$version.nupkg", '--source', $global_packages)
-    RunCommand "dotnet" @('nuget', 'push', "src\**\$dotnetConfiguration\*.$version.nupkg", '--source', $global_packages)
+    RunCommand "dotnet" @('new', 'nugetconfig', '-o', '.')
+    RunCommand "dotnet" @('nuget', 'add', "source", '--configfile', 'nuget.config', '-n', 'IceRPC Local Source', '.\packages')
 }
 
 function RunCommand($command, $arguments) {
