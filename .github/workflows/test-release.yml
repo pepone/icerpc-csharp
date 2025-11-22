@@ -1,0 +1,66 @@
+name: "Test NuGet Packages"
+
+on:
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: "The channel to publish to (e.g., stable, nightly)"
+        required: true
+      run_id:
+        description: "The run ID to use for downloading artifacts"
+        required: true
+  workflow_call:
+    inputs:
+      channel:
+        required: true
+        type: string
+      run_id:
+        required: true
+        type: string
+
+jobs:
+  test-packages:
+    strategy:
+      matrix:
+        include:
+          - os: macos-15
+          - os: ubuntu-24.04
+          - os: windows-2025
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Initialize NuGet local cache
+        run: dotnet restore
+
+      - name: Download packages artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: packages
+          path: packages
+
+      - name: Configure NuGet sources
+        run: |
+          dotnet new nugetconfig -o ${{ github.workspace }}
+          dotnet nuget add source --configfile ${{ github.workspace }}/nuget.config -n "Local Packages" ${{ github.workspace }}/packages
+        shell: pwsh
+
+      - name: Install dotnet new templates
+        working-directory: packages
+        run: |
+          $version = $env:GITHUB_REF -replace '^refs/tags/v',''
+          dotnet new install IceRpc.Templates::$version
+        shell: pwsh
+
+      - name: 🔨 Build Examples
+        run: |
+          $examples = Get-ChildItem -Path examples -Recurse -Include *.sln
+          foreach ($example in $examples) { dotnet build $example.FullName }
+        shell: pwsh
+
+      - name: 🧪 Test Templates
+        uses: ./.github/actions/test-templates
