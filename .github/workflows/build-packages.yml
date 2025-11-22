@@ -122,7 +122,6 @@ jobs:
             $assemblies |
                 Set-Content -Path "${{ github.workspace }}\catalog.txt" -Encoding UTF8
 
-
       - name: Sign .NET Assemblies and slicec-cs.exe compiler
         uses: azure/trusted-signing-action@v0
         with:
