@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Import this file in projects that need to use IceRpc.Slice.Generators as an analyzer during source builds -->
+<Project>
+  <ItemGroup>
+    <ProjectReference Include="$(MSBuildThisFileDirectory)IceRpc.Slice.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="$(MSBuildThisFileDirectory)../ZeroC.CodeBuilder/ZeroC.CodeBuilder.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+</Project>

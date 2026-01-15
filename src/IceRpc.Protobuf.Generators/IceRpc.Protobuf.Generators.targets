@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Import this file in projects that need to use IceRpc.Protobuf.Generators as an analyzer during source builds -->
+<Project>
+  <ItemGroup>
+    <ProjectReference Include="$(MSBuildThisFileDirectory)IceRpc.Protobuf.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+</Project>

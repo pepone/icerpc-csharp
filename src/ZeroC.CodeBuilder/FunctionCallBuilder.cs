@@ -107,7 +107,7 @@ public sealed class FunctionCallBuilder : IBuilder
         if (_argumentsOnNewline && _arguments.Count > 0)
         {
             functionCall =
-                $"{_callable}{typeArg}({Environment.NewLine}    {string.Join($",{Environment.NewLine}    ", _arguments)})";
+                $"{_callable}{typeArg}(\n    {string.Join(",\n    ", _arguments)})";
         }
         else
         {

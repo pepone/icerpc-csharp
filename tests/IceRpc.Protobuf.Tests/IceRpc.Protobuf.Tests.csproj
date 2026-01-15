@@ -22,8 +22,8 @@
 
   <ItemGroup>
     <ProjectReference Include="../../src/IceRpc.Protobuf/IceRpc.Protobuf.csproj" />
-    <ProjectReference Include="../../src/IceRpc.Protobuf.Generators/IceRpc.Protobuf.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
     <ProjectReference Include="../IceRpc.Tests.Common/IceRpc.Tests.Common.csproj" />
   </ItemGroup>
   <Import Project="../../tools/IceRpc.Protobuf.Tools/IceRpc.Protobuf.Tools.targets" />
+  <Import Project="../../src/IceRpc.Protobuf.Generators/IceRpc.Protobuf.Generators.targets" />
 </Project>
