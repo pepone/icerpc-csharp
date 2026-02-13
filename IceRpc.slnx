@@ -25,6 +25,7 @@
     <Project Path="src/IceRpc.SliceBuildTelemetry.Reporter/IceRpc.SliceBuildTelemetry.Reporter.csproj" />
     <Project Path="src/IceRpc.Telemetry/IceRpc.Telemetry.csproj" />
     <Project Path="src/IceRpc.Transports.Coloc/IceRpc.Transports.Coloc.csproj" />
+    <Project Path="src/IceRpc.Transports.WebSocket/IceRpc.Transports.WebSocket.csproj" />
     <Project Path="src/ZeroC.Slice/ZeroC.Slice.csproj" />
   </Folder>
   <Folder Name="/tests/">
@@ -42,6 +43,7 @@
     <Project Path="tests/IceRpc.Slice.Tests/IceRpc.Slice.Tests.csproj" />
     <Project Path="tests/IceRpc.Telemetry.Tests/IceRpc.Telemetry.Tests.csproj" />
     <Project Path="tests/IceRpc.Tests/IceRpc.Tests.csproj" />
+    <Project Path="tests/IceRpc.Transports.WebSocket.Tests/IceRpc.Transports.WebSocket.Tests.csproj" />
     <Project Path="tests/IceRpc.Tests.Common/IceRpc.Tests.Common.csproj" />
     <Project Path="tests/IntegrationTests/IntegrationTests.csproj" />
     <Project Path="tests/ZeroC.Slice.Tests/ZeroC.Slice.Tests.csproj" />
