@@ -71,15 +71,11 @@ internal sealed class WebSocketClientConnection : WebSocketConnection
 
             await Socket.ConnectAsync(_addr, cancellationToken).ConfigureAwait(false);
 
-            // Workaround for https://github.com/dotnet/runtime/issues/75889.
-            cancellationToken.ThrowIfCancellationRequested();
-
             if (_authenticationOptions is not null)
             {
                 _sslStream = new SslStream(new NetworkStream(Socket, false), false);
                 await _sslStream.AuthenticateAsClientAsync(
-                    _authenticationOptions,
-                    cancellationToken).ConfigureAwait(false);
+                    _authenticationOptions, cancellationToken).ConfigureAwait(false);
             }
 
             await PerformHandshakeAsync(_path, _host, cancellationToken).ConfigureAwait(false);

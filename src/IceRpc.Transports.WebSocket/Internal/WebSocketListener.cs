@@ -66,10 +66,10 @@ internal sealed class WebSocketListener : IListener<IDuplexConnection>
 
         if (_authenticationOptions is not null && _authenticationOptions.ApplicationProtocols is null)
         {
-            _authenticationOptions.ApplicationProtocols = new List<SslApplicationProtocol>
-            {
-                new SslApplicationProtocol(serverAddress.Protocol.Name)
-            };
+            _authenticationOptions.ApplicationProtocols =
+            [
+                new(serverAddress.Protocol.Name)
+            ];
         }
 
         var address = new IPEndPoint(ipAddress, serverAddress.Port);
