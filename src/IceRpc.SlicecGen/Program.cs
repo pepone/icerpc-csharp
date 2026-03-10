@@ -35,10 +35,14 @@ var referenceFiles = decoder.DecodeSequence<SliceFile>((ref decoder) => new Slic
 reader.AdvanceTo(readResult.Buffer.End);
 await reader.CompleteAsync().ConfigureAwait(false);
 
-// Pass 1: Build type registry from ALL files.
+// Convert decoded types into rich symbols with resolved references.
+var converter = new SymbolConverter(sourceFiles.Concat(referenceFiles));
+var symbolFiles = converter.ConvertFiles(sourceFiles);
+
+// Build type registry (still used by struct generator for now).
 var registry = new TypeRegistry(sourceFiles.Concat(referenceFiles));
 
-// Pass 2: Generate code for each source file.
+// Generate code for each source file.
 foreach (SliceFile file in sourceFiles)
 {
     foreach (Symbol symbol in file.Contents)
