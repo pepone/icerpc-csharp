@@ -33,6 +33,18 @@ internal sealed class TypeRegistry
     /// <summary>Looks up a named symbol by its fully-scoped TypeId.</summary>
     internal Symbol? FindSymbol(string typeId) => _symbols.GetValueOrDefault(typeId);
 
+    /// <summary>Resolves any TypeId to its Symbol: anonymous types (numeric index into file.Contents) or named types
+    /// (registry lookup). Returns null for primitives and unknown types.</summary>
+    internal Symbol? FindSymbol(string typeId, SliceFile file)
+    {
+        if (int.TryParse(typeId, out int index))
+        {
+            return index >= 0 && index < file.Contents.Count ? file.Contents[index] : null;
+        }
+
+        return _symbols.GetValueOrDefault(typeId);
+    }
+
     private static string? GetNamedIdentifier(Symbol symbol) => symbol switch
     {
         Symbol.Struct s => s.V.EntityInfo.Identifier,

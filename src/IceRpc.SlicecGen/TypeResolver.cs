@@ -61,19 +61,12 @@ internal static class TypeResolver
             return info.IsValueType;
         }
 
-        // Anonymous types (sequences, dictionaries, results) are reference types.
-        if (int.TryParse(typeId, out _))
-        {
-            return false;
-        }
-
-        // User-defined types: structs and mapped enums are value types.
-        Symbol? symbol = registry.FindSymbol(typeId);
-        return symbol switch
+        // Anonymous and named types.
+        return registry.FindSymbol(typeId, file) switch
         {
             Symbol.Struct => true,
             Symbol.Enum enumSymbol => !enumSymbol.V.IsUnchecked, // Checked enums map to C# enum (value type)
-            _ => false,
+            _ => false, // Sequences, dictionaries, results, unknown types are reference types.
         };
     }
 
@@ -148,12 +141,6 @@ internal static class TypeResolver
         return $"decoder.DecodeTagged({tag}, (ref SliceDecoder decoder) => ({csType}?){decodeExpr})";
     }
 
-    /// <summary>Resolves an anonymous type index to its Symbol.</summary>
-    internal static Symbol? ResolveAnonymousType(string typeId, SliceFile file) =>
-        int.TryParse(typeId, out int index) && index >= 0 && index < file.Contents.Count
-            ? file.Contents[index]
-            : null;
-
     private static string ResolveBaseType(
         string typeId,
         SliceFile file,
@@ -166,24 +153,18 @@ internal static class TypeResolver
             return csType;
         }
 
-        // Check anonymous types (numeric index into file.Contents).
-        if (int.TryParse(typeId, out int index) && index >= 0 && index < file.Contents.Count)
+        // Anonymous and named types.
+        return registry.FindSymbol(typeId, file) switch
         {
-            Symbol symbol = file.Contents[index];
-            return symbol switch
-            {
-                Symbol.SequenceType seq =>
-                    $"global::System.Collections.Generic.IList<{FieldTypeString(seq.V.ElementType, file, currentNamespace, registry)}>",
-                Symbol.DictionaryType dict =>
-                    $"global::System.Collections.Generic.IDictionary<{FieldTypeString(dict.V.KeyType, file, currentNamespace, registry)}, {FieldTypeString(dict.V.ValueType, file, currentNamespace, registry)}>",
-                Symbol.ResultType result =>
-                    $"Result<{FieldTypeString(result.V.SuccessType, file, currentNamespace, registry)}, {FieldTypeString(result.V.FailureType, file, currentNamespace, registry)}>",
-                _ => $"/* unknown anonymous type at index {index} */",
-            };
-        }
-
-        // User-defined type: scoped identifier like "Module::TypeName"
-        return ResolveUserTypeName(typeId, currentNamespace);
+            Symbol.SequenceType seq =>
+                $"global::System.Collections.Generic.IList<{FieldTypeString(seq.V.ElementType, file, currentNamespace, registry)}>",
+            Symbol.DictionaryType dict =>
+                $"global::System.Collections.Generic.IDictionary<{FieldTypeString(dict.V.KeyType, file, currentNamespace, registry)}, {FieldTypeString(dict.V.ValueType, file, currentNamespace, registry)}>",
+            Symbol.ResultType result =>
+                $"Result<{FieldTypeString(result.V.SuccessType, file, currentNamespace, registry)}, {FieldTypeString(result.V.FailureType, file, currentNamespace, registry)}>",
+            // User-defined type: scoped identifier like "Module::TypeName"
+            _ => ResolveUserTypeName(typeId, currentNamespace),
+        };
     }
 
     private static string ResolveUserTypeName(string typeId, string currentNamespace)
@@ -230,23 +211,11 @@ internal static class TypeResolver
             return $"encoder.Encode{suffix}({param});";
         }
 
-        // Anonymous type
-        if (int.TryParse(typeId, out int index) && index >= 0 && index < file.Contents.Count)
+        // Anonymous and named types.
+        return registry.FindSymbol(typeId, file) switch
         {
-            Symbol symbol = file.Contents[index];
-            return symbol switch
-            {
-                Symbol.SequenceType seq => EncodeSequence(seq.V, file, currentNamespace, param, registry),
-                Symbol.DictionaryType dict => EncodeDictionary(dict.V, file, currentNamespace, param, registry),
-                _ => $"/* TODO: encode {typeId} */",
-            };
-        }
-
-        // User-defined type: struct or enum
-        Symbol? namedSymbol = registry.FindSymbol(typeId);
-        return namedSymbol switch
-        {
-            Symbol.Struct => $"{param}.Encode(ref encoder);",
+            Symbol.SequenceType seq => EncodeSequence(seq.V, file, currentNamespace, param, registry),
+            Symbol.DictionaryType dict => EncodeDictionary(dict.V, file, currentNamespace, param, registry),
             Symbol.Enum enumSymbol when !enumSymbol.V.IsUnchecked =>
                 $"{GetEncoderExtensionsClass(typeId)}.Encode{CsNaming.ToPascalCase(typeId.Split("::")[^1])}(ref encoder, {param});",
             _ => $"{param}.Encode(ref encoder);",
@@ -267,24 +236,12 @@ internal static class TypeResolver
             return $"decoder.Decode{suffix}()";
         }
 
-        // Anonymous type
-        if (int.TryParse(typeId, out int index) && index >= 0 && index < file.Contents.Count)
-        {
-            Symbol symbol = file.Contents[index];
-            return symbol switch
-            {
-                Symbol.SequenceType seq => DecodeSequence(seq.V, file, currentNamespace, registry),
-                Symbol.DictionaryType dict => DecodeDictionary(dict.V, file, currentNamespace, registry),
-                _ => $"/* TODO: decode {typeId} */",
-            };
-        }
-
-        // User-defined type
+        // Anonymous and named types.
         string csType = ResolveUserTypeName(typeId, currentNamespace);
-        Symbol? namedSymbol = registry.FindSymbol(typeId);
-        return namedSymbol switch
+        return registry.FindSymbol(typeId, file) switch
         {
-            Symbol.Struct => $"new {csType}(ref decoder)",
+            Symbol.SequenceType seq => DecodeSequence(seq.V, file, currentNamespace, registry),
+            Symbol.DictionaryType dict => DecodeDictionary(dict.V, file, currentNamespace, registry),
             Symbol.Enum enumSymbol when !enumSymbol.V.IsUnchecked =>
                 $"{GetDecoderExtensionsClass(typeId)}.Decode{CsNaming.ToPascalCase(typeId.Split("::")[^1])}(ref decoder)",
             _ => $"new {csType}(ref decoder)",
