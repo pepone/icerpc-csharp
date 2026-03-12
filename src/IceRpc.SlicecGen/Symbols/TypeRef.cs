@@ -1,0 +1,26 @@
+// Copyright (c) ZeroC, Inc.
+
+using System.Collections.Immutable;
+
+namespace ZeroC.Slice.Symbols;
+
+/// <summary>
+/// Represents a reference to a Slice type.
+/// </summary>
+public record class TypeRef
+{
+    /// <summary>
+    /// Gets the symbol associated with the referenced type.
+    /// </summary>
+    public required Symbol Symbol { get; init; }
+
+    /// <summary>
+    /// Gets a value indicating whether the referenced type is optional.
+    /// </summary>
+    public required bool IsOptional { get; init; }
+
+    /// <summary>
+    /// Gets the list of attributes associated with the referenced type.
+    /// </summary>
+    public required ImmutableList<Attribute> Attributes { get; init; }
+}
