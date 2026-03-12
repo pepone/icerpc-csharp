@@ -18,4 +18,16 @@ public record class EntityInfo
     /// Gets the attributes associated with the entity.
     /// </summary>
     public required ImmutableList<Attribute> Attributes { get; init; }
+
+    /// <summary>
+    /// Gets the module that contains this entity.
+    /// </summary>
+    public required Module Module { get; init; }
+
+    /// <summary>
+    /// Gets the fully scoped Slice identifier (e.g. "MyModule::MyType").
+    /// </summary>
+    public string ScopedSliceId => string.IsNullOrEmpty(Module.Identifier)
+        ? Identifier
+        : $"{Module.Identifier}::{Identifier}";
 }

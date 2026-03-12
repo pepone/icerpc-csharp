@@ -23,4 +23,15 @@ public record class TypeRef
     /// Gets the list of attributes associated with the referenced type.
     /// </summary>
     public required ImmutableList<Attribute> Attributes { get; init; }
+
+    /// <summary>
+    /// Gets a value indicating whether the referenced type is a C# value type.
+    /// </summary>
+    public bool IsValueType => Symbol switch
+    {
+        Builtin b => b.Kind != BuiltinKind.String,
+        Struct => true,
+        EnumWithUnderlying e => !e.IsUnchecked,
+        _ => false,
+    };
 }

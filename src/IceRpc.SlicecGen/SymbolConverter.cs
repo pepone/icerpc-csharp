@@ -62,6 +62,7 @@ internal sealed class SymbolConverter
     private Symbols.SliceFile ConvertFile(Compiler.SliceFile file)
     {
         string moduleScope = file.ModuleDeclaration.Identifier;
+        Symbols.Module module = ConvertModule(file.ModuleDeclaration);
 
         var contents = ImmutableList.CreateBuilder<Symbols.Symbol>();
         for (int i = 0; i < file.Contents.Count; i++)
@@ -78,14 +79,14 @@ internal sealed class SymbolConverter
             else
             {
                 // Anonymous type — convert inline (scoped to this file).
-                contents.Add(ConvertSymbol(raw, file));
+                contents.Add(ConvertSymbol(raw, file, module));
             }
         }
 
         return new()
         {
             Path = file.Path,
-            Module = ConvertModule(file.ModuleDeclaration),
+            Module = module,
             Attributes = ConvertAttributes(file.Attributes),
             Contents = contents.ToImmutable(),
         };
@@ -103,7 +104,8 @@ internal sealed class SymbolConverter
         // Anonymous type (numeric index into currentFile.Contents).
         if (int.TryParse(typeId, out int index))
         {
-            return ConvertSymbol(currentFile.Contents[index], currentFile);
+            Symbols.Module module = ConvertModule(currentFile.ModuleDeclaration);
+            return ConvertSymbol(currentFile.Contents[index], currentFile, module);
         }
 
         // Named type.
@@ -118,23 +120,25 @@ internal sealed class SymbolConverter
         }
 
         (Compiler.SliceFile file, Compiler.Symbol symbol) = _named[typeId];
-        Symbols.Symbol converted = ConvertSymbol(symbol, file);
+        Symbols.Module module = ConvertModule(file.ModuleDeclaration);
+        Symbols.Symbol converted = ConvertSymbol(symbol, file, module);
         _cache[typeId] = converted;
         return converted;
     }
 
-    private Symbols.Symbol ConvertSymbol(Compiler.Symbol symbol, Compiler.SliceFile file) => symbol switch
+    private Symbols.Symbol ConvertSymbol(Compiler.Symbol symbol, Compiler.SliceFile file, Symbols.Module module) =>
+        symbol switch
     {
-        Compiler.Symbol.Struct s => ConvertStruct(s.V, file),
-        Compiler.Symbol.Enum e => ConvertEnum(e.V, file),
-        Compiler.Symbol.Interface i => ConvertInterface(i.V, file),
+        Compiler.Symbol.Struct s => ConvertStruct(s.V, file, module),
+        Compiler.Symbol.Enum e => ConvertEnum(e.V, file, module),
+        Compiler.Symbol.Interface i => ConvertInterface(i.V, file, module),
         Compiler.Symbol.CustomType c => new Symbols.CustomType
         {
-            EntityInfo = ConvertEntityInfo(c.V.EntityInfo),
+            EntityInfo = ConvertEntityInfo(c.V.EntityInfo, module),
         },
         Compiler.Symbol.TypeAlias t => new Symbols.TypeAlias
         {
-            EntityInfo = ConvertEntityInfo(t.V.EntityInfo),
+            EntityInfo = ConvertEntityInfo(t.V.EntityInfo, module),
             UnderlyingType = ConvertTypeRef(t.V.UnderlyingType, file),
         },
         Compiler.Symbol.SequenceType s => new Symbols.SequenceType
@@ -154,53 +158,74 @@ internal sealed class SymbolConverter
         _ => throw new InvalidOperationException($"Unknown symbol type: {symbol.GetType().Name}"),
     };
 
-    private Symbols.Struct ConvertStruct(Compiler.Struct raw, Compiler.SliceFile file) => new()
+    private Symbols.Struct ConvertStruct(Compiler.Struct raw, Compiler.SliceFile file, Symbols.Module module) => new()
     {
-        EntityInfo = ConvertEntityInfo(raw.EntityInfo),
+        EntityInfo = ConvertEntityInfo(raw.EntityInfo, module),
         IsCompact = raw.IsCompact,
-        Fields = raw.Fields.Select(f => ConvertField(f, file)).ToImmutableList(),
+        Fields = raw.Fields.Select(f => ConvertField(f, file, module)).ToImmutableList(),
     };
 
-    private Symbols.Enum ConvertEnum(Compiler.Enum raw, Compiler.SliceFile file) => new()
+    private Symbols.Symbol ConvertEnum(Compiler.Enum raw, Compiler.SliceFile file, Symbols.Module module)
     {
-        EntityInfo = ConvertEntityInfo(raw.EntityInfo),
-        IsCompact = raw.IsCompact,
-        IsUnchecked = raw.IsUnchecked,
-        Underlying = raw.Underlying is string u && Builtins.TryGetValue(u, out var builtin) ? builtin : null,
-        Enumerators = raw.Enumerators.Select(e => ConvertEnumerator(e, file)).ToImmutableList(),
-    };
+        if (raw.Underlying is string u && Builtins.TryGetValue(u, out var builtin))
+        {
+            return new Symbols.EnumWithUnderlying
+            {
+                EntityInfo = ConvertEntityInfo(raw.EntityInfo, module),
+                IsCompact = raw.IsCompact,
+                IsUnchecked = raw.IsUnchecked,
+                Underlying = builtin,
+                Enumerators = raw.Enumerators.Select(e => new Symbols.EnumWithUnderlying.Enumerator
+                {
+                    EntityInfo = ConvertEntityInfo(e.EntityInfo, module),
+                    AbsoluteValue = e.Value.AbsoluteValue,
+                    IsPositive = e.Value.IsPositive,
+                }).ToImmutableList(),
+            };
+        }
+        else
+        {
+            return new Symbols.EnumWithFields
+            {
+                EntityInfo = ConvertEntityInfo(raw.EntityInfo, module),
+                IsCompact = raw.IsCompact,
+                IsUnchecked = raw.IsUnchecked,
+                Enumerators = raw.Enumerators.Select(e => new Symbols.EnumWithFields.Enumerator
+                {
+                    EntityInfo = ConvertEntityInfo(e.EntityInfo, module),
+                    Fields = e.Fields.Select(f => ConvertField(f, file, module)).ToImmutableList(),
+                }).ToImmutableList(),
+            };
+        }
+    }
 
-    private Symbols.Interface ConvertInterface(Compiler.Interface raw, Compiler.SliceFile file) => new()
+    private Symbols.Interface ConvertInterface(Compiler.Interface raw, Compiler.SliceFile file, Symbols.Module module) =>
+        new()
     {
-        EntityInfo = ConvertEntityInfo(raw.EntityInfo),
+        EntityInfo = ConvertEntityInfo(raw.EntityInfo, module),
         Bases = raw.Bases
             .Select(baseId => ResolveNamedType(baseId))
             .OfType<Symbols.Interface>()
             .ToImmutableList(),
-        Operations = raw.Operations.Select(op => ConvertOperation(op, file)).ToImmutableList(),
+        Operations = raw.Operations.Select(op => ConvertOperation(op, file, module)).ToImmutableList(),
     };
 
-    private Symbols.Operation ConvertOperation(Compiler.Operation raw, Compiler.SliceFile file) => new()
+    private Symbols.Operation ConvertOperation(
+        Compiler.Operation raw,
+        Compiler.SliceFile file,
+        Symbols.Module module) => new()
     {
-        EntityInfo = ConvertEntityInfo(raw.EntityInfo),
+        EntityInfo = ConvertEntityInfo(raw.EntityInfo, module),
         IsIdempotent = raw.IsIdempotent,
-        Parameters = raw.Parameters.Select(f => ConvertField(f, file)).ToImmutableList(),
+        Parameters = raw.Parameters.Select(f => ConvertField(f, file, module)).ToImmutableList(),
         HasStreamedParameter = raw.HasStreamedParameter,
-        ReturnType = raw.ReturnType.Select(f => ConvertField(f, file)).ToImmutableList(),
+        ReturnType = raw.ReturnType.Select(f => ConvertField(f, file, module)).ToImmutableList(),
         HasStreamedReturn = raw.HasStreamedReturn,
     };
 
-    private Symbols.Enumerator ConvertEnumerator(Compiler.Enumerator raw, Compiler.SliceFile file) => new()
+    private Symbols.Field ConvertField(Compiler.Field raw, Compiler.SliceFile file, Symbols.Module module) => new()
     {
-        EntityInfo = ConvertEntityInfo(raw.EntityInfo),
-        AbsoluteValue = raw.Value.AbsoluteValue,
-        IsPositive = raw.Value.IsPositive,
-        Fields = raw.Fields.Select(f => ConvertField(f, file)).ToImmutableList(),
-    };
-
-    private Symbols.Field ConvertField(Compiler.Field raw, Compiler.SliceFile file) => new()
-    {
-        EntityInfo = ConvertEntityInfo(raw.EntityInfo),
+        EntityInfo = ConvertEntityInfo(raw.EntityInfo, module),
         Tag = raw.Tag,
         Type = ConvertTypeRef(raw.DataType, file),
     };
@@ -212,10 +237,11 @@ internal sealed class SymbolConverter
         Attributes = ConvertAttributes(raw.TypeAttributes),
     };
 
-    private static Symbols.EntityInfo ConvertEntityInfo(Compiler.EntityInfo raw) => new()
+    private static Symbols.EntityInfo ConvertEntityInfo(Compiler.EntityInfo raw, Symbols.Module module) => new()
     {
         Identifier = raw.Identifier,
         Attributes = ConvertAttributes(raw.Attributes),
+        Module = module,
     };
 
     private static Symbols.Module ConvertModule(Compiler.Module raw) => new()

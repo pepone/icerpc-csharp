@@ -1,20 +1,26 @@
 // Copyright (c) ZeroC, Inc.
 
+using System.Collections.Immutable;
 using ZeroC.CodeBuilder;
-using ZeroC.Slice.Compiler;
+using ZeroC.Slice.Symbols;
+using Attribute = ZeroC.Slice.Symbols.Attribute;
 
 namespace IceRpc.SlicecGen;
 
 /// <summary>Generates C# record structs from Slice struct definitions.</summary>
-internal static class StructGenerator
+internal sealed class StructGenerator : Generator
 {
-    /// <summary>Generates a complete C# record struct declaration.</summary>
-    internal static CodeBlock GenerateStruct(Struct structDef, SliceFile file, TypeRegistry registry)
+    internal StructGenerator(ImmutableList<SliceFile> symbolFiles)
+        : base(symbolFiles)
     {
-        string escapedIdentifier = CsNaming.EscapedIdentifier(structDef.EntityInfo);
-        string currentNamespace = CsNaming.AsNamespace(file.ModuleDeclaration);
-        string accessModifier = CsNaming.AccessModifier(structDef.EntityInfo);
-        bool isReadonly = CsNaming.HasAttribute(structDef.EntityInfo.Attributes, "cs::readonly");
+    }
+
+    internal CodeBlock Generate(Struct structDef)
+    {
+        string escapedIdentifier = structDef.EntityInfo.EscapedName;
+        string currentNamespace = AsNamespace(structDef.EntityInfo.Module);
+        string accessModifier = AccessModifier(structDef.EntityInfo);
+        bool isReadonly = structDef.EntityInfo.Attributes.HasAttribute(Attribute.CsReadonly);
 
         // Build the declaration prefix.
         string declaration = isReadonly
@@ -26,10 +32,7 @@ internal static class StructGenerator
         // Add doc comments.
         // TODO: format doc comment from structDef.EntityInfo.Comment
 
-        string moduleScope = file.ModuleDeclaration.Identifier;
-        string scopedId = string.IsNullOrEmpty(moduleScope)
-            ? structDef.EntityInfo.Identifier
-            : $"{moduleScope}::{structDef.EntityInfo.Identifier}";
+        string scopedId = structDef.EntityInfo.ScopedSliceId;
         builder.AddComment(
             "remarks",
             $"The Slice compiler generated this record struct from the Slice struct <c>{scopedId}</c>.");
@@ -37,32 +40,28 @@ internal static class StructGenerator
         // Add property declarations (in original order).
         CodeBlock fieldDeclarations = CodeBlock.FromBlocks(
             structDef.Fields.Select(
-                f => FieldHelpers.FieldDeclaration(f, file, currentNamespace, accessModifier, isReadonly, registry)));
+                f => FieldDeclaration(f, currentNamespace, accessModifier, isReadonly)));
         builder.AddBlock(fieldDeclarations);
 
         // Add main constructor.
-        builder.AddBlock(GenerateMainConstructor(
-            structDef, file, currentNamespace, escapedIdentifier, accessModifier, registry));
+        builder.AddBlock(GenerateMainConstructor(structDef, currentNamespace, escapedIdentifier, accessModifier));
 
         // Add decode constructor.
-        builder.AddBlock(GenerateDecodeConstructor(
-            structDef, file, currentNamespace, escapedIdentifier, accessModifier, registry));
+        builder.AddBlock(GenerateDecodeConstructor(structDef, currentNamespace, escapedIdentifier, accessModifier));
 
         // Add encode method.
-        builder.AddBlock(GenerateEncodeMethod(structDef, file, currentNamespace, accessModifier, registry));
+        builder.AddBlock(GenerateEncodeMethod(structDef, currentNamespace, accessModifier));
 
         return builder.Build();
     }
 
-    private static CodeBlock GenerateMainConstructor(
+    private CodeBlock GenerateMainConstructor(
         Struct structDef,
-        SliceFile file,
         string currentNamespace,
         string escapedIdentifier,
-        string accessModifier,
-        TypeRegistry registry)
+        string accessModifier)
     {
-        bool hasRequiredField = structDef.Fields.Any(f => FieldHelpers.IsRequired(f, file, registry));
+        bool hasRequiredField = structDef.Fields.Any(f => f.IsRequired);
 
         var ctor = new FunctionBuilder(accessModifier, "", escapedIdentifier, FunctionType.BlockBody);
 
@@ -71,35 +70,33 @@ internal static class StructGenerator
             ctor.AddSetsRequiredMembersAttribute();
         }
 
-        ctor.AddComment("summary", $"Constructs a new instance of <see cref=\"{escapedIdentifier}\" />.");
+        ctor.AddComment("summary", @$"Constructs a new instance of <see cref=""{escapedIdentifier}"" />.");
 
         foreach (Field field in structDef.Fields)
         {
-            string typeString = TypeResolver.FieldTypeString(field.DataType, file, currentNamespace, registry);
-            string paramName = CsNaming.FieldParameterName(field);
+            string typeString = FieldTypeString(field.Type, currentNamespace);
+            string paramName = field.ParameterName;
             ctor.AddParameter(typeString, paramName);
         }
 
         var body = new CodeBlock();
         foreach (Field field in structDef.Fields)
         {
-            body.WriteLine($"this.{CsNaming.FieldName(field)} = {CsNaming.FieldParameterName(field)};");
+            body.WriteLine($"this.{field.FieldName} = {field.ParameterName};");
         }
         ctor.SetBody(body);
 
         return ctor.Build();
     }
 
-    private static CodeBlock GenerateDecodeConstructor(
+    private CodeBlock GenerateDecodeConstructor(
         Struct structDef,
-        SliceFile file,
         string currentNamespace,
         string escapedIdentifier,
-        string accessModifier,
-        TypeRegistry registry)
+        string accessModifier)
     {
-        IReadOnlyList<Field> sortedFields = FieldHelpers.GetSortedFields(structDef.Fields);
-        bool hasRequiredField = structDef.Fields.Any(f => FieldHelpers.IsRequired(f, file, registry));
+        IReadOnlyList<Field> sortedFields = GetSortedFields(structDef.Fields);
+        bool hasRequiredField = structDef.Fields.Any(f => f.IsRequired);
 
         var ctor = new FunctionBuilder(accessModifier, "", escapedIdentifier, FunctionType.BlockBody);
 
@@ -110,13 +107,13 @@ internal static class StructGenerator
 
         ctor.AddComment(
             "summary",
-            $"Constructs a new instance of <see cref=\"{escapedIdentifier}\" /> and decodes its fields from a Slice decoder.");
+            @$"Constructs a new instance of <see cref=""{escapedIdentifier}"" /> and decodes its fields from a Slice decoder.");
         ctor.AddComment("param", "name", "decoder", "The Slice decoder.");
         ctor.AddParameter("ref SliceDecoder", "decoder");
 
         var body = new CodeBlock();
 
-        int bitSequenceSize = FieldHelpers.GetBitSequenceSize(structDef.Fields);
+        int bitSequenceSize = GetBitSequenceSize(structDef.Fields);
         if (bitSequenceSize > 0)
         {
             body.WriteLine($"var bitSequenceReader = decoder.GetBitSequenceReader({bitSequenceSize});");
@@ -124,24 +121,9 @@ internal static class StructGenerator
 
         foreach (Field field in sortedFields)
         {
-            string fieldName = CsNaming.FieldName(field);
-
-            if (FieldHelpers.IsTagged(field))
-            {
-                string decodeExpr = TypeResolver.DecodeTaggedField(field, file, currentNamespace, registry);
-                body.WriteLine($"this.{fieldName} = {decodeExpr};");
-            }
-            else if (field.DataType.IsOptional)
-            {
-                // Non-tagged optional: use bit sequence reader.
-                string decodeExpr = TypeResolver.DecodeField(field, file, currentNamespace, registry);
-                body.WriteLine($"this.{fieldName} = bitSequenceReader.Read() ? {decodeExpr} : null;");
-            }
-            else
-            {
-                string decodeExpr = TypeResolver.DecodeField(field, file, currentNamespace, registry);
-                body.WriteLine($"this.{fieldName} = {decodeExpr};");
-            }
+            string fieldName = field.FieldName;
+            string decodeExpr = GetFieldDecodeExpression(field, currentNamespace);
+            body.WriteLine($"this.{fieldName} = {decodeExpr};");
         }
 
         if (!structDef.IsCompact)
@@ -153,14 +135,12 @@ internal static class StructGenerator
         return ctor.Build();
     }
 
-    private static CodeBlock GenerateEncodeMethod(
+    private CodeBlock GenerateEncodeMethod(
         Struct structDef,
-        SliceFile file,
         string currentNamespace,
-        string accessModifier,
-        TypeRegistry registry)
+        string accessModifier)
     {
-        IReadOnlyList<Field> sortedFields = FieldHelpers.GetSortedFields(structDef.Fields);
+        IReadOnlyList<Field> sortedFields = GetSortedFields(structDef.Fields);
 
         var method = new FunctionBuilder(
             $"{accessModifier} readonly",
@@ -174,7 +154,7 @@ internal static class StructGenerator
 
         var body = new CodeBlock();
 
-        int bitSequenceSize = FieldHelpers.GetBitSequenceSize(structDef.Fields);
+        int bitSequenceSize = GetBitSequenceSize(structDef.Fields);
         if (bitSequenceSize > 0)
         {
             body.WriteLine($"var bitSequenceWriter = encoder.GetBitSequenceWriter({bitSequenceSize});");
@@ -182,20 +162,20 @@ internal static class StructGenerator
 
         foreach (Field field in sortedFields)
         {
-            if (FieldHelpers.IsTagged(field))
+            if (field.IsTagged)
             {
-                body.WriteLine(TypeResolver.EncodeTaggedField(field, file, currentNamespace, registry));
+                body.WriteLine(EncodeTaggedField(field, currentNamespace));
             }
-            else if (field.DataType.IsOptional)
+            else if (field.Type.IsOptional)
             {
                 // Non-tagged optional: write bit and encode conditionally.
-                string fieldName = CsNaming.FieldName(field);
+                string fieldName = field.FieldName;
                 string param = $"this.{fieldName}";
-                bool isValueType = TypeResolver.IsValueType(field.DataType, file, registry);
+                bool isValueType = field.Type.IsValueType;
 
                 body.WriteLine($"bitSequenceWriter.Write({param} != null);");
                 string valueParam = isValueType ? $"{param}.Value" : param;
-                string encodeExpr = EncodeValueExpression(field.DataType, valueParam, registry);
+                string encodeExpr = EncodeExpression(field.Type, currentNamespace, valueParam);
                 body.WriteLine($"if ({param} != null)");
                 body.WriteLine("{");
                 body.WriteLine($"    {encodeExpr}");
@@ -203,7 +183,7 @@ internal static class StructGenerator
             }
             else
             {
-                body.WriteLine(TypeResolver.EncodeField(field, file, currentNamespace, registry));
+                body.WriteLine(EncodeField(field, currentNamespace));
             }
         }
 
@@ -214,26 +194,5 @@ internal static class StructGenerator
 
         method.SetBody(body);
         return method.Build();
-    }
-
-    /// <summary>Generates an encode expression for use inside non-tagged optional if blocks.</summary>
-    private static string EncodeValueExpression(TypeRef typeRef, string param, TypeRegistry registry)
-    {
-        string typeId = typeRef.TypeId;
-
-        if (TypeResolver.PrimitiveEncodeSuffix(typeId) is string suffix)
-        {
-            return $"encoder.Encode{suffix}({param});";
-        }
-
-        // Checked enums use extension methods.
-        Symbol? symbol = registry.FindSymbol(typeId);
-        if (symbol is Symbol.Enum enumSymbol && !enumSymbol.V.IsUnchecked)
-        {
-            string typeName = CsNaming.ToPascalCase(typeId.Split("::")[^1]);
-            return $"{typeName}SliceEncoderExtensions.Encode{typeName}(ref encoder, {param});";
-        }
-
-        return $"{param}.Encode(ref encoder);";
     }
 }

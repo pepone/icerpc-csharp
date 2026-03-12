@@ -1,7 +1,9 @@
 // Copyright (c) ZeroC, Inc.
 
+using System.Collections.Immutable;
 using System.IO.Pipelines;
 using IceRpc.SlicecGen;
+using ZeroC.CodeBuilder;
 using ZeroC.Slice.Codec;
 using ZeroC.Slice.Compiler;
 
@@ -29,27 +31,35 @@ var decoder = new SliceDecoder(
 string op = decoder.DecodeString();
 
 // Decode source files and reference files.
-var sourceFiles = decoder.DecodeSequence<SliceFile>((ref decoder) => new SliceFile(ref decoder));
-var referenceFiles = decoder.DecodeSequence<SliceFile>((ref decoder) => new SliceFile(ref decoder));
+SliceFile[] sourceFiles = decoder.DecodeSequence((ref decoder) => new SliceFile(ref decoder));
+SliceFile[] referenceFiles = decoder.DecodeSequence((ref decoder) => new SliceFile(ref decoder));
 
 reader.AdvanceTo(readResult.Buffer.End);
 await reader.CompleteAsync().ConfigureAwait(false);
 
 // Convert decoded types into rich symbols with resolved references.
 var converter = new SymbolConverter(sourceFiles.Concat(referenceFiles));
-var symbolFiles = converter.ConvertFiles(sourceFiles);
-
-// Build type registry (still used by struct generator for now).
-var registry = new TypeRegistry(sourceFiles.Concat(referenceFiles));
+ImmutableList<ZeroC.Slice.Symbols.SliceFile> symbolFiles = converter.ConvertFiles(sourceFiles);
 
 // Generate code for each source file.
-foreach (SliceFile file in sourceFiles)
+var structGen = new StructGenerator(symbolFiles);
+var enumUnderlyingGen = new EnumWithUnderlyingGenerator(symbolFiles);
+var enumFieldsGen = new EnumWithFieldsGenerator(symbolFiles);
+
+foreach (ZeroC.Slice.Symbols.SliceFile file in symbolFiles)
 {
-    foreach (Symbol symbol in file.Contents)
+    foreach (ZeroC.Slice.Symbols.Symbol symbol in file.Contents)
     {
-        if (symbol is Symbol.Struct structSymbol)
+        CodeBlock? code = symbol switch
         {
-            var code = StructGenerator.GenerateStruct(structSymbol.V, file, registry);
+            ZeroC.Slice.Symbols.Struct s => structGen.Generate(s),
+            ZeroC.Slice.Symbols.EnumWithUnderlying e => EnumWithUnderlyingGenerator.Generate(e),
+            ZeroC.Slice.Symbols.EnumWithFields e => enumFieldsGen.Generate(e),
+            _ => null,
+        };
+
+        if (code is not null)
+        {
             Console.Error.WriteLine(code.ToString());
         }
     }
