@@ -28,8 +28,6 @@ internal sealed class EnumWithFieldsGenerator : Generator
         ]);
     }
 
-    // -- Private static methods --
-
     private static CodeBlock GenerateUnknownRecord(
         EnumWithFields enumDef,
         string parentIdentifier,
@@ -90,8 +88,6 @@ internal sealed class EnumWithFieldsGenerator : Generator
         builder.AddBlock(method.Build());
         return builder.Build();
     }
-
-    // -- Private instance methods --
 
     private CodeBlock GenerateUnionDeclaration(
         EnumWithFields enumDef,

@@ -35,7 +35,7 @@ SliceFile[] sourceFiles = decoder.DecodeSequence((ref decoder) => new SliceFile(
 SliceFile[] referenceFiles = decoder.DecodeSequence((ref decoder) => new SliceFile(ref decoder));
 
 reader.AdvanceTo(readResult.Buffer.End);
-await reader.CompleteAsync().ConfigureAwait(false);
+reader.Complete();
 
 // Convert decoded types into rich symbols with resolved references.
 var converter = new ZeroC.Slice.Symbols.SymbolConverter(sourceFiles.Concat(referenceFiles));

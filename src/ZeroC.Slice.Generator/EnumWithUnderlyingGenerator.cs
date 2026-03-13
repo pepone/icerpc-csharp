@@ -31,8 +31,8 @@ internal sealed class EnumWithUnderlyingGenerator : Generator
 
     private static CodeBlock GenerateEnumDeclaration(
         EnumWithUnderlying enumDef,
-    string identifier,
-    string accessModifier)
+        string identifier,
+        string accessModifier)
     {
         var builder = new ContainerBuilder($"{accessModifier} enum", identifier);
 

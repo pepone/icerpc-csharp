@@ -25,8 +25,6 @@ internal class Generator
         }
     }
 
-    // -- Protected static methods --
-
     /// <summary>Gets the access modifier for an entity ("public" or "internal").</summary>
     protected static string AccessModifier(EntityInfo entity) =>
         entity.Attributes.HasAttribute(Attribute.CsInternal) ? "internal" : "public";
@@ -61,8 +59,6 @@ internal class Generator
     /// <summary>Counts non-tagged optional fields (for Slice2 bit sequence sizing).</summary>
     protected static int GetBitSequenceSize(ImmutableList<Field> fields) =>
         fields.Count(f => !f.IsTagged && f.Type.IsOptional);
-
-    // -- Protected instance methods --
 
     /// <summary>Resolves a TypeRef to its C# type string for field declarations.</summary>
     protected string FieldTypeString(TypeRef typeRef, string currentNamespace)
