@@ -34,7 +34,7 @@ internal sealed class EnumWithUnderlyingGenerator : Generator
         string escapedIdentifier,
         string accessModifier)
     {
-        (string csType, string _, bool _) = BuiltinMap[enumDef.Underlying.Kind];
+        string csType = enumDef.Underlying.CsType;
         string scopedId = enumDef.EntityInfo.ScopedSliceId;
 
         var builder = new ContainerBuilder($"{accessModifier} enum", escapedIdentifier);
@@ -84,7 +84,7 @@ internal sealed class EnumWithUnderlyingGenerator : Generator
         string escapedIdentifier,
         string accessModifier)
     {
-        var (csType, _, _) = BuiltinMap[enumDef.Underlying.Kind];
+        string csType = enumDef.Underlying.CsType;
         string csTypePascal = csType.ToPascalCase();
         string scopedId = enumDef.EntityInfo.ScopedSliceId;
         string article = GetArticle(csType);
@@ -165,7 +165,8 @@ throw new global::System.IO.InvalidDataException($""Invalid enumerator value '{{
         string escapedIdentifier,
         string accessModifier)
     {
-        var (csType, suffix, _) = BuiltinMap[enumDef.Underlying.Kind];
+        string csType = enumDef.Underlying.CsType;
+        string suffix = enumDef.Underlying.Suffix;
         string scopedId = enumDef.EntityInfo.ScopedSliceId;
 
         var builder = new ContainerBuilder(
@@ -205,7 +206,8 @@ throw new global::System.IO.InvalidDataException($""Invalid enumerator value '{{
         string escapedIdentifier,
         string accessModifier)
     {
-        var (csType, suffix, _) = BuiltinMap[enumDef.Underlying.Kind];
+        string csType = enumDef.Underlying.CsType;
+        string suffix = enumDef.Underlying.Suffix;
         string csTypePascal = csType.ToPascalCase();
         string scopedId = enumDef.EntityInfo.ScopedSliceId;
 

@@ -95,8 +95,37 @@ public enum BuiltinKind
 /// </summary>
 public record class Builtin : Symbol
 {
+    private static readonly Dictionary<BuiltinKind, string> _csTypeMap = new()
+    {
+        [BuiltinKind.Bool]      = "bool",
+        [BuiltinKind.Int8]      = "sbyte",
+        [BuiltinKind.UInt8]     = "byte",
+        [BuiltinKind.Int16]     = "short",
+        [BuiltinKind.UInt16]    = "ushort",
+        [BuiltinKind.Int32]     = "int",
+        [BuiltinKind.UInt32]    = "uint",
+        [BuiltinKind.VarInt32]  = "int",
+        [BuiltinKind.VarUInt32] = "uint",
+        [BuiltinKind.Int64]     = "long",
+        [BuiltinKind.UInt64]    = "ulong",
+        [BuiltinKind.VarInt62]  = "long",
+        [BuiltinKind.VarUInt62] = "ulong",
+        [BuiltinKind.Float32]   = "float",
+        [BuiltinKind.Float64]   = "double",
+        [BuiltinKind.String]    = "string",
+    };
+
     /// <summary>
     /// The kind of the built-in type.
     /// </summary>
     public required BuiltinKind Kind { get; init; }
+
+    /// <summary>The C# type name for this built-in (e.g. "int", "string").</summary>
+    public string CsType => _csTypeMap[Kind];
+
+    /// <summary>The encoder/decoder method suffix for this built-in (e.g. "Int32", "String").</summary>
+    public string Suffix => Kind.ToString();
+
+    /// <summary>Whether the C# type is a value type.</summary>
+    public bool IsValueType => Kind != BuiltinKind.String;
 }

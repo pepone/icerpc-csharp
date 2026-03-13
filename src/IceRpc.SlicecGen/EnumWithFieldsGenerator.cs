@@ -18,7 +18,7 @@ internal sealed class EnumWithFieldsGenerator : Generator
     {
         string escapedIdentifier = enumDef.EntityInfo.EscapedName;
         string accessModifier = AccessModifier(enumDef.EntityInfo);
-        string currentNamespace = AsNamespace(enumDef.EntityInfo.Module);
+        string currentNamespace = enumDef.EntityInfo.Namespace;
 
         return CodeBlock.FromBlocks(
         [

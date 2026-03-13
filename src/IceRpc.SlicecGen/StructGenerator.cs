@@ -18,7 +18,7 @@ internal sealed class StructGenerator : Generator
     internal CodeBlock Generate(Struct structDef)
     {
         string escapedIdentifier = structDef.EntityInfo.EscapedName;
-        string currentNamespace = AsNamespace(structDef.EntityInfo.Module);
+        string currentNamespace = structDef.EntityInfo.Namespace;
         string accessModifier = AccessModifier(structDef.EntityInfo);
         bool isReadonly = structDef.EntityInfo.Attributes.HasAttribute(Attribute.CsReadonly);
 

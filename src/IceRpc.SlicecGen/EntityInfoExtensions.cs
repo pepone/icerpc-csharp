@@ -29,6 +29,21 @@ internal static class EntityInfoExtensions
 
     extension(EntityInfo entity)
     {
+        /// <summary>Gets the C# namespace for this entity (respects cs::namespace attribute on the module).</summary>
+        internal string Namespace
+        {
+            get
+            {
+                Module module = entity.Module;
+                if (module.Attributes.FindAttribute(Attribute.CsNamespace) is { } attr)
+                {
+                    return attr.Args[0];
+                }
+                string[] segments = module.Identifier.Split("::");
+                return string.Join(".", segments.Select(s => EscapeKeyword(s.ToPascalCase())));
+            }
+        }
+
         /// <summary>Gets the escaped C# identifier (checks cs::identifier attribute, applies PascalCase, escapes
         /// keywords).</summary>
         internal string EscapedName

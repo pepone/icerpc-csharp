@@ -11,27 +11,7 @@ namespace IceRpc.SlicecGen;
 /// provides type resolution and field helper methods.</summary>
 internal class Generator
 {
-    protected static readonly Dictionary<BuiltinKind, (string CsType, string Suffix, bool IsValueType)> BuiltinMap = new()
-    {
-        [BuiltinKind.Bool] = ("bool", "Bool", true),
-        [BuiltinKind.Int8] = ("sbyte", "Int8", true),
-        [BuiltinKind.UInt8] = ("byte", "UInt8", true),
-        [BuiltinKind.Int16] = ("short", "Int16", true),
-        [BuiltinKind.UInt16] = ("ushort", "UInt16", true),
-        [BuiltinKind.Int32] = ("int", "Int32", true),
-        [BuiltinKind.UInt32] = ("uint", "UInt32", true),
-        [BuiltinKind.VarInt32] = ("int", "VarInt32", true),
-        [BuiltinKind.VarUInt32] = ("uint", "VarUInt32", true),
-        [BuiltinKind.Int64] = ("long", "Int64", true),
-        [BuiltinKind.UInt64] = ("ulong", "UInt64", true),
-        [BuiltinKind.VarInt62] = ("long", "VarInt62", true),
-        [BuiltinKind.VarUInt62] = ("ulong", "VarUInt62", true),
-        [BuiltinKind.Float32] = ("float", "Float32", true),
-        [BuiltinKind.Float64] = ("double", "Float64", true),
-        [BuiltinKind.String] = ("string", "String", false),
-    };
-
-    private readonly Dictionary<Symbol, string> _namespaces = new();
+    private readonly Dictionary<Symbol, string> _namespaces = [];
 
     protected Generator(ImmutableList<SliceFile> symbolFiles)
     {
@@ -52,13 +32,8 @@ internal class Generator
     // -- Naming helpers --
 
     /// <summary>Converts a Module to a C# namespace string (respects cs::namespace attribute).</summary>
-    protected static string AsNamespace(Module module)
+    private static string AsNamespace(Module module)
     {
-        if (string.IsNullOrEmpty(module.Identifier))
-        {
-            return "";
-        }
-
         if (module.Attributes.FindAttribute(Attribute.CsNamespace) is { } attr)
         {
             return attr.Args[0];
@@ -97,12 +72,8 @@ internal class Generator
     };
 
     /// <summary>Generates encode code for a non-tagged field.</summary>
-    protected string EncodeField(Field field, string currentNamespace)
-    {
-        string fieldName = field.FieldName;
-        string param = $"this.{fieldName}";
-        return EncodeExpression(field.Type, currentNamespace, param);
-    }
+    protected string EncodeField(Field field, string currentNamespace) =>
+        EncodeExpression(field.Type, currentNamespace, $"this.{field.FieldName}");
 
     /// <summary>Generates decode expression for a non-tagged field.</summary>
     protected string DecodeField(Field field, string currentNamespace) =>
@@ -111,8 +82,7 @@ internal class Generator
     /// <summary>Generates encode code for a tagged field.</summary>
     protected string EncodeTaggedField(Field field, string currentNamespace)
     {
-        string fieldName = field.FieldName;
-        string param = $"this.{fieldName}";
+        string param = $"this.{field.FieldName}";
         int tag = field.Tag!.Value;
 
         bool isValueType = field.Type.IsValueType;
@@ -140,21 +110,15 @@ internal class Generator
         }
     }
 
-    /// <summary>Generates decode expression for a tagged field.</summary>
-    protected string DecodeTaggedField(Field field, string currentNamespace)
-    {
-        int tag = field.Tag!.Value;
-        string decodeExpr = DecodeExpression(field.Type, currentNamespace);
-        string csType = ResolveBaseType(field.Type.Symbol, currentNamespace);
-        return $"decoder.DecodeTagged({tag}, (ref SliceDecoder decoder) => ({csType}?){decodeExpr})";
-    }
-
     /// <summary>Gets the full decode expression for a field, handling tagged, optional, and regular fields.</summary>
     protected string GetFieldDecodeExpression(Field field, string currentNamespace)
     {
         if (field.IsTagged)
         {
-            return DecodeTaggedField(field, currentNamespace);
+            int tag = field.Tag!.Value;
+            string decodeExpr = DecodeExpression(field.Type, currentNamespace);
+            string csType = ResolveBaseType(field.Type.Symbol, currentNamespace);
+            return $"decoder.DecodeTagged({tag}, (ref SliceDecoder decoder) => ({csType}?){decodeExpr})";
         }
         else if (field.Type.IsOptional)
         {
@@ -212,13 +176,9 @@ internal class Generator
 
     private string ResolveBaseType(Symbol symbol, string currentNamespace)
     {
-        if (symbol is Builtin builtin && BuiltinMap.TryGetValue(builtin.Kind, out var info))
-        {
-            return info.CsType;
-        }
-
         return symbol switch
         {
+            Builtin builtin => builtin.CsType,
             SequenceType seq =>
                 $"global::System.Collections.Generic.IList<{FieldTypeString(seq.ElementType, currentNamespace)}>",
             DictionaryType dict =>
@@ -245,15 +205,10 @@ internal class Generator
     }
 
 
-    protected string EncodeExpression(TypeRef typeRef, string currentNamespace, string param)
-    {
-        if (typeRef.Symbol is Builtin builtin && BuiltinMap.TryGetValue(builtin.Kind, out var info))
+    protected string EncodeExpression(TypeRef typeRef, string currentNamespace, string param) =>
+        typeRef.Symbol switch
         {
-            return $"encoder.Encode{info.Suffix}({param});";
-        }
-
-        return typeRef.Symbol switch
-        {
+            Builtin builtin => $"encoder.Encode{builtin.Suffix}({param});",
             SequenceType seq => EncodeSequence(seq, currentNamespace, param),
             DictionaryType dict => EncodeDictionary(dict, currentNamespace, param),
             EnumWithUnderlying e when !e.IsUnchecked =>
@@ -262,17 +217,11 @@ internal class Generator
                 $"{GetEncoderExtensionsClass(e.EntityInfo)}.Encode{e.EntityInfo.EscapedName}(ref encoder, {param});",
             _ => $"{param}.Encode(ref encoder);",
         };
-    }
 
-    private string DecodeExpression(TypeRef typeRef, string currentNamespace)
-    {
-        if (typeRef.Symbol is Builtin builtin && BuiltinMap.TryGetValue(builtin.Kind, out var info))
+    private string DecodeExpression(TypeRef typeRef, string currentNamespace) =>
+        typeRef.Symbol switch
         {
-            return $"decoder.Decode{info.Suffix}()";
-        }
-
-        return typeRef.Symbol switch
-        {
+            Builtin builtin => $"decoder.Decode{builtin.Suffix}()",
             SequenceType seq => DecodeSequence(seq, currentNamespace),
             DictionaryType dict => DecodeDictionary(dict, currentNamespace),
             EnumWithUnderlying e when !e.IsUnchecked =>
@@ -281,7 +230,6 @@ internal class Generator
                 $"{GetDecoderExtensionsClass(e.EntityInfo)}.Decode{e.EntityInfo.EscapedName}(ref decoder)",
             _ => $"new {ResolveUserTypeName(typeRef.Symbol, currentNamespace)}(ref decoder)",
         };
-    }
 
     private string EncodeSequence(SequenceType seq, string currentNamespace, string param)
     {
@@ -311,40 +259,29 @@ internal class Generator
 
     private string GetEncodeLambda(TypeRef typeRef, string currentNamespace)
     {
-        if (typeRef.Symbol is Builtin builtin && BuiltinMap.TryGetValue(builtin.Kind, out var info))
-        {
-            return $"(ref SliceEncoder encoder, {info.CsType} value) => encoder.Encode{info.Suffix}(value)";
-        }
-
         string csType = FieldTypeString(typeRef, currentNamespace);
-        if (typeRef.Symbol is EnumWithUnderlying or EnumWithFields)
+        return typeRef.Symbol switch
         {
-            EntityInfo entityInfo = GetEntityInfo(typeRef.Symbol)!;
-            string encoderClass = GetEncoderExtensionsClass(entityInfo);
-            string encodeName = entityInfo.EscapedName;
-            return $"(ref SliceEncoder encoder, {csType} value) => {encoderClass}.Encode{encodeName}(ref encoder, value)";
-        }
-
-        return $"(ref SliceEncoder encoder, {csType} value) => value.Encode(ref encoder)";
+            Builtin builtin =>
+                $"(ref SliceEncoder encoder, {builtin.CsType} value) => encoder.Encode{builtin.Suffix}(value)",
+            EnumWithUnderlying or EnumWithFields =>
+                $"(ref SliceEncoder encoder, {csType} value) => {GetEncoderExtensionsClass(GetEntityInfo(typeRef.Symbol)!)}.Encode{GetEntityInfo(typeRef.Symbol)!.EscapedName}(ref encoder, value)",
+            _ =>
+                $"(ref SliceEncoder encoder, {csType} value) => value.Encode(ref encoder)",
+        };
     }
 
     private string GetDecodeLambda(TypeRef typeRef, string currentNamespace)
     {
-        if (typeRef.Symbol is Builtin builtin && BuiltinMap.TryGetValue(builtin.Kind, out var info))
+        return typeRef.Symbol switch
         {
-            return $"(ref SliceDecoder decoder) => decoder.Decode{info.Suffix}()";
-        }
-
-        if (typeRef.Symbol is EnumWithUnderlying or EnumWithFields)
-        {
-            EntityInfo entityInfo = GetEntityInfo(typeRef.Symbol)!;
-            string decoderClass = GetDecoderExtensionsClass(entityInfo);
-            string decodeName = entityInfo.EscapedName;
-            return $"(ref SliceDecoder decoder) => {decoderClass}.Decode{decodeName}(ref decoder)";
-        }
-
-        string csType = ResolveBaseType(typeRef.Symbol, currentNamespace);
-        return $"(ref SliceDecoder decoder) => new {csType}(ref decoder)";
+            Builtin builtin =>
+                $"(ref SliceDecoder decoder) => decoder.Decode{builtin.Suffix}()",
+            EnumWithUnderlying or EnumWithFields =>
+                $"(ref SliceDecoder decoder) => {GetDecoderExtensionsClass(GetEntityInfo(typeRef.Symbol)!)}.Decode{GetEntityInfo(typeRef.Symbol)!.EscapedName}(ref decoder)",
+            _ =>
+                $"(ref SliceDecoder decoder) => new {ResolveBaseType(typeRef.Symbol, currentNamespace)}(ref decoder)",
+        };
     }
 
     private static string GetEncoderExtensionsClass(EntityInfo entityInfo)

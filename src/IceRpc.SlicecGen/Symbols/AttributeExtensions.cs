@@ -1,9 +1,6 @@
 // Copyright (c) ZeroC, Inc.
 
-using ZeroC.Slice.Symbols;
-using Attribute = ZeroC.Slice.Symbols.Attribute;
-
-namespace IceRpc.SlicecGen;
+namespace ZeroC.Slice.Symbols;
 
 /// <summary>Extension methods for querying Slice attribute lists.</summary>
 internal static class AttributeExtensions
