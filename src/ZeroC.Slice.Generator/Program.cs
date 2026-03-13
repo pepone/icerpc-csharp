@@ -2,10 +2,10 @@
 
 using System.Collections.Immutable;
 using System.IO.Pipelines;
-using ZeroC.Slice.Generator;
 using ZeroC.CodeBuilder;
 using ZeroC.Slice.Codec;
 using ZeroC.Slice.Compiler;
+using ZeroC.Slice.Generator;
 
 // The Slice compiler executes this program and writes the Slice2-encoded request to stdin.
 
