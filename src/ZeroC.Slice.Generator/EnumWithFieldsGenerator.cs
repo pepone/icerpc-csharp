@@ -16,31 +16,92 @@ internal sealed class EnumWithFieldsGenerator : Generator
 
     internal CodeBlock Generate(EnumWithFields enumDef)
     {
-        string escapedIdentifier = enumDef.EntityInfo.EscapedName;
+        string identifier = enumDef.EntityInfo.Name;
         string accessModifier = AccessModifier(enumDef.EntityInfo);
         string currentNamespace = enumDef.EntityInfo.Namespace;
 
         return CodeBlock.FromBlocks(
         [
-            GenerateUnionDeclaration(enumDef, escapedIdentifier, accessModifier, currentNamespace),
-            GenerateEncoderExtensions(enumDef, escapedIdentifier, accessModifier),
-            GenerateDecoderExtensions(enumDef, escapedIdentifier, accessModifier, currentNamespace),
+            GenerateUnionDeclaration(enumDef, identifier, accessModifier, currentNamespace),
+            GenerateEncoderExtensions(enumDef, identifier, accessModifier),
+            GenerateDecoderExtensions(enumDef, identifier, accessModifier, currentNamespace),
         ]);
     }
 
-    // -- Union declaration --
+    // -- Private static methods --
+
+    private static CodeBlock GenerateUnknownRecord(
+        EnumWithFields enumDef,
+        string parentIdentifier,
+        string accessModifier)
+    {
+        string enumName = enumDef.EntityInfo.Name;
+        var builder = new ContainerBuilder(
+            $"{accessModifier} partial record class",
+            $"Unknown(int Discriminant, global::System.ReadOnlyMemory<byte> Fields)");
+        builder.AddBase(parentIdentifier);
+        builder.AddComment(
+            "summary",
+            @$"Represents an enumerator not defined in the local Slice definition of unchecked enum '{enumName}'.");
+        builder.AddComment("param", "name", "Discriminant", "The discriminant of this unknown enumerator.");
+        builder.AddComment("param", "name", "Fields", "The encoded fields of this unknown enumerator.");
+
+        builder.AddBlock("""
+            [global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]
+            internal override void Encode(ref SliceEncoder encoder)
+            {
+                encoder.EncodeVarInt32(Discriminant);
+                encoder.EncodeSize(Fields.Length);
+                encoder.WriteByteSpan(Fields.Span);
+            }
+            """);
+
+        return builder.Build();
+    }
+
+    private static CodeBlock GenerateEncoderExtensions(EnumWithFields enumDef, string identifier, string accessModifier)
+    {
+        string scopedId = enumDef.EntityInfo.ScopedSliceId;
+
+        var builder = new ContainerBuilder($"{accessModifier} static class", $"{identifier}SliceEncoderExtensions");
+
+        builder.AddComment(
+            "summary",
+            @$"Provides an extension method for encoding a <see cref=""{identifier}"" /> using a <see cref=""SliceEncoder"" />.");
+        builder.AddComment(
+            "remarks",
+            $"The Slice compiler generated this static class from the Slice enum <c>{scopedId}</c>.");
+
+        var method = new FunctionBuilder(
+            $"{accessModifier} static",
+            "void",
+            $"Encode{identifier}",
+            FunctionType.ExpressionBody);
+
+        method.AddComment("summary", @$"Encodes a <see cref=""{identifier}"" /> enum.");
+        method.AddParameter("this ref SliceEncoder", "encoder", null, "The Slice encoder.");
+        method.AddParameter(
+            identifier,
+            "value",
+            null,
+            @$"The <see cref=""{identifier}"" /> enumerator value to encode.");
+        method.SetBody("value.Encode(ref encoder)");
+
+        builder.AddBlock(method.Build());
+        return builder.Build();
+    }
+
+    // -- Private instance methods --
 
     private CodeBlock GenerateUnionDeclaration(
         EnumWithFields enumDef,
-        string escapedIdentifier,
+        string identifier,
         string accessModifier,
         string currentNamespace)
     {
         string scopedId = enumDef.EntityInfo.ScopedSliceId;
 
-        var builder = new ContainerBuilder(
-            $"{accessModifier} abstract partial record class",
-            escapedIdentifier);
+        var builder = new ContainerBuilder($"{accessModifier} abstract partial record class", identifier);
 
         builder.AddComment(
             "remarks",
@@ -55,7 +116,7 @@ internal sealed class EnumWithFieldsGenerator : Generator
                 GenerateEnumeratorRecord(
                     enumerator,
                     enumDef,
-                    escapedIdentifier,
+                    identifier,
                     accessModifier,
                     currentNamespace,
                     discriminant));
@@ -65,7 +126,7 @@ internal sealed class EnumWithFieldsGenerator : Generator
         // For unchecked enums, add the Unknown variant.
         if (enumDef.IsUnchecked)
         {
-            builder.AddBlock(GenerateUnknownRecord(enumDef, escapedIdentifier, accessModifier));
+            builder.AddBlock(GenerateUnknownRecord(enumDef, identifier, accessModifier));
         }
 
         // Abstract Encode method.
@@ -86,7 +147,7 @@ internal sealed class EnumWithFieldsGenerator : Generator
         string currentNamespace,
         int discriminant)
     {
-        string enumeratorName = enumerator.EntityInfo.EscapedName;
+        string enumeratorName = enumerator.EntityInfo.Name;
 
         // Build parameter list for the record constructor.
         string nameWithParams = enumerator.Fields.Count > 0
@@ -107,35 +168,6 @@ internal sealed class EnumWithFieldsGenerator : Generator
 
         // Encode method override.
         builder.AddBlock(GenerateEncodeMethod(enumerator, enumDef, currentNamespace));
-
-        return builder.Build();
-    }
-
-    private static CodeBlock GenerateUnknownRecord(
-        EnumWithFields enumDef,
-        string parentIdentifier,
-        string accessModifier)
-    {
-        string enumName = enumDef.EntityInfo.EscapedName;
-        var builder = new ContainerBuilder(
-            $"{accessModifier} partial record class",
-            $"Unknown(int Discriminant, global::System.ReadOnlyMemory<byte> Fields)");
-        builder.AddBase(parentIdentifier);
-        builder.AddComment(
-            "summary",
-            @$"Represents an enumerator not defined in the local Slice definition of unchecked enum '{enumName}'.");
-        builder.AddComment("param", "name", "Discriminant", "The discriminant of this unknown enumerator.");
-        builder.AddComment("param", "name", "Fields", "The encoded fields of this unknown enumerator.");
-
-        builder.AddBlock("""
-            [global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]
-            internal override void Encode(ref SliceEncoder encoder)
-            {
-                encoder.EncodeVarInt32(Discriminant);
-                encoder.EncodeSize(Fields.Length);
-                encoder.WriteByteSpan(Fields.Span);
-            }
-            """);
 
         return builder.Build();
     }
@@ -174,7 +206,7 @@ internal sealed class EnumWithFieldsGenerator : Generator
         // Encode each field.
         foreach (Field field in sortedFields)
         {
-            string param = $"this.{field.EntityInfo.EscapedName}";
+            string param = $"this.{field.EntityInfo.Name}";
 
             if (field.IsTagged)
             {
@@ -221,50 +253,9 @@ internal sealed class EnumWithFieldsGenerator : Generator
         return code;
     }
 
-    // -- Encoder extensions --
-
-    private static CodeBlock GenerateEncoderExtensions(
-        EnumWithFields enumDef,
-        string escapedIdentifier,
-        string accessModifier)
-    {
-        string scopedId = enumDef.EntityInfo.ScopedSliceId;
-
-        var builder = new ContainerBuilder(
-            $"{accessModifier} static class",
-            $"{escapedIdentifier}SliceEncoderExtensions");
-
-        builder.AddComment(
-            "summary",
-            @$"Provides an extension method for encoding a <see cref=""{escapedIdentifier}"" /> using a <see cref=""SliceEncoder"" />.");
-        builder.AddComment(
-            "remarks",
-            $"The Slice compiler generated this static class from the Slice enum <c>{scopedId}</c>.");
-
-        var method = new FunctionBuilder(
-            $"{accessModifier} static",
-            "void",
-            $"Encode{escapedIdentifier}",
-            FunctionType.ExpressionBody);
-
-        method.AddComment("summary", @$"Encodes a <see cref=""{escapedIdentifier}"" /> enum.");
-        method.AddParameter("this ref SliceEncoder", "encoder", null, "The Slice encoder.");
-        method.AddParameter(
-            escapedIdentifier,
-            "value",
-            null,
-            @$"The <see cref=""{escapedIdentifier}"" /> enumerator value to encode.");
-        method.SetBody("value.Encode(ref encoder)");
-
-        builder.AddBlock(method.Build());
-        return builder.Build();
-    }
-
-    // -- Decoder extensions --
-
     private CodeBlock GenerateDecoderExtensions(
         EnumWithFields enumDef,
-        string escapedIdentifier,
+        string identifier,
         string accessModifier,
         string currentNamespace)
     {
@@ -272,26 +263,26 @@ internal sealed class EnumWithFieldsGenerator : Generator
 
         var builder = new ContainerBuilder(
             $"{accessModifier} static class",
-            $"{escapedIdentifier}SliceDecoderExtensions");
+            $"{identifier}SliceDecoderExtensions");
 
         builder.AddComment(
             "summary",
-            @$"Provides an extension method for decoding a <see cref=""{escapedIdentifier}"" /> using a <see cref=""SliceDecoder"" />.");
+            @$"Provides an extension method for decoding a <see cref=""{identifier}"" /> using a <see cref=""SliceDecoder"" />.");
         builder.AddComment(
             "remarks",
             $"The Slice compiler generated this static class from the Slice enum <c>{scopedId}</c>.");
 
         var method = new FunctionBuilder(
             $"{accessModifier} static",
-            escapedIdentifier,
-            $"Decode{escapedIdentifier}",
+            identifier,
+            $"Decode{identifier}",
             FunctionType.BlockBody);
 
-        method.AddComment("summary", @$"Decodes a <see cref=""{escapedIdentifier}"" /> enum.");
+        method.AddComment("summary", @$"Decodes a <see cref=""{identifier}"" /> enum.");
         method.AddParameter("this ref SliceDecoder", "decoder", null, "The Slice decoder.");
         method.AddComment(
             "returns",
-            @$"The decoded <see cref=""{escapedIdentifier}"" /> enumerator value.");
+            @$"The decoded <see cref=""{identifier}"" /> enumerator value.");
 
         var body = new CodeBlock();
 
@@ -300,28 +291,28 @@ internal sealed class EnumWithFieldsGenerator : Generator
         body.WriteLine("{");
         foreach (EnumWithFields.Enumerator enumerator in enumDef.Enumerators)
         {
-            string enumeratorName = enumerator.EntityInfo.EscapedName;
+            string enumeratorName = enumerator.EntityInfo.Name;
             body.WriteLine(
-                $"    {escapedIdentifier}.{enumeratorName}.Discriminant => Decode{enumeratorName}(ref decoder),");
+                $"    {identifier}.{enumeratorName}.Discriminant => Decode{enumeratorName}(ref decoder),");
         }
 
         // Fallback case.
         if (enumDef.IsUnchecked)
         {
             body.WriteLine(
-                $"    int value => new {escapedIdentifier}.Unknown(value, decoder.DecodeSequence<byte>())");
+                $"    int value => new {identifier}.Unknown(value, decoder.DecodeSequence<byte>())");
         }
         else
         {
             body.WriteLine(
-                @$"    int value => throw new global::System.IO.InvalidDataException($""Received invalid discriminant value '{{value}}' for {escapedIdentifier}."")");
+                @$"    int value => throw new global::System.IO.InvalidDataException($""Received invalid discriminant value '{{value}}' for {identifier}."")");
         }
         body.WriteLine("};");
 
         // Local static decode functions for each enumerator.
         foreach (EnumWithFields.Enumerator enumerator in enumDef.Enumerators)
         {
-            body.AddBlock(GenerateDecodeLocalFunction(enumerator, enumDef, escapedIdentifier, currentNamespace));
+            body.AddBlock(GenerateDecodeLocalFunction(enumerator, enumDef, identifier, currentNamespace));
         }
 
         method.SetBody(body);
@@ -335,7 +326,7 @@ internal sealed class EnumWithFieldsGenerator : Generator
         string parentIdentifier,
         string currentNamespace)
     {
-        string enumeratorName = enumerator.EntityInfo.EscapedName;
+        string enumeratorName = enumerator.EntityInfo.Name;
         IReadOnlyList<Field> sortedFields = GetSortedFields(enumerator.Fields);
 
         var code = new CodeBlock();
@@ -364,7 +355,7 @@ internal sealed class EnumWithFieldsGenerator : Generator
         {
             // Single non-tagged field, simple one-liner.
             Field field = sortedFields[0];
-            string paramName = field.EntityInfo.EscapedName;
+            string paramName = field.EntityInfo.Name;
             string decodeExpr = GetFieldDecodeExpression(field, currentNamespace);
             code.WriteLine($"    var result = new {parentIdentifier}.{enumeratorName}({paramName}: {decodeExpr});");
         }
@@ -382,7 +373,7 @@ internal sealed class EnumWithFieldsGenerator : Generator
             for (int i = 0; i < allFields.Count; i++)
             {
                 Field field = allFields[i];
-                string paramName = field.EntityInfo.EscapedName;
+                string paramName = field.EntityInfo.Name;
                 string decodeExpr = GetFieldDecodeExpression(field, currentNamespace);
                 string separator = i < allFields.Count - 1 ? "," : ");";
                 code.WriteLine($"        {paramName}: {decodeExpr}{separator}");
@@ -406,7 +397,7 @@ internal sealed class EnumWithFieldsGenerator : Generator
         return string.Join(", ", fields.Select(f =>
         {
             string typeString = FieldTypeString(f.Type, currentNamespace);
-            string paramName = f.EntityInfo.EscapedName;
+            string paramName = f.EntityInfo.Name;
             return $"{typeString} {paramName}";
         }));
     }

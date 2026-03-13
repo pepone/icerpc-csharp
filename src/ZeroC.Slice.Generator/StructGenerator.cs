@@ -17,7 +17,7 @@ internal sealed class StructGenerator : Generator
 
     internal CodeBlock Generate(Struct structDef)
     {
-        string escapedIdentifier = structDef.EntityInfo.EscapedName;
+        string identifier = structDef.EntityInfo.Name;
         string currentNamespace = structDef.EntityInfo.Namespace;
         string accessModifier = AccessModifier(structDef.EntityInfo);
         bool isReadonly = structDef.EntityInfo.Attributes.HasAttribute(Attribute.CsReadonly);
@@ -27,7 +27,7 @@ internal sealed class StructGenerator : Generator
             ? $"{accessModifier} readonly partial record struct"
             : $"{accessModifier} partial record struct";
 
-        var builder = new ContainerBuilder(declaration, escapedIdentifier);
+        var builder = new ContainerBuilder(declaration, identifier);
 
         // Add doc comments.
         // TODO: format doc comment from structDef.EntityInfo.Comment
@@ -38,16 +38,16 @@ internal sealed class StructGenerator : Generator
             $"The Slice compiler generated this record struct from the Slice struct <c>{scopedId}</c>.");
 
         // Add property declarations (in original order).
-        CodeBlock fieldDeclarations = CodeBlock.FromBlocks(
+        var fieldDeclarations = CodeBlock.FromBlocks(
             structDef.Fields.Select(
                 f => FieldDeclaration(f, currentNamespace, accessModifier, isReadonly)));
         builder.AddBlock(fieldDeclarations);
 
         // Add main constructor.
-        builder.AddBlock(GenerateMainConstructor(structDef, currentNamespace, escapedIdentifier, accessModifier));
+        builder.AddBlock(GenerateMainConstructor(structDef, currentNamespace, identifier, accessModifier));
 
         // Add decode constructor.
-        builder.AddBlock(GenerateDecodeConstructor(structDef, currentNamespace, escapedIdentifier, accessModifier));
+        builder.AddBlock(GenerateDecodeConstructor(structDef, currentNamespace, identifier, accessModifier));
 
         // Add encode method.
         builder.AddBlock(GenerateEncodeMethod(structDef, currentNamespace, accessModifier));
@@ -58,19 +58,19 @@ internal sealed class StructGenerator : Generator
     private CodeBlock GenerateMainConstructor(
         Struct structDef,
         string currentNamespace,
-        string escapedIdentifier,
+        string identifier,
         string accessModifier)
     {
         bool hasRequiredField = structDef.Fields.Any(f => f.IsRequired);
 
-        var ctor = new FunctionBuilder(accessModifier, "", escapedIdentifier, FunctionType.BlockBody);
+        var ctor = new FunctionBuilder(accessModifier, "", identifier, FunctionType.BlockBody);
 
         if (hasRequiredField)
         {
             ctor.AddSetsRequiredMembersAttribute();
         }
 
-        ctor.AddComment("summary", @$"Constructs a new instance of <see cref=""{escapedIdentifier}"" />.");
+        ctor.AddComment("summary", @$"Constructs a new instance of <see cref=""{identifier}"" />.");
 
         foreach (Field field in structDef.Fields)
         {
@@ -82,7 +82,7 @@ internal sealed class StructGenerator : Generator
         var body = new CodeBlock();
         foreach (Field field in structDef.Fields)
         {
-            body.WriteLine($"this.{field.EntityInfo.EscapedName} = {field.EntityInfo.ParameterName};");
+            body.WriteLine($"this.{field.EntityInfo.Name} = {field.EntityInfo.ParameterName};");
         }
         ctor.SetBody(body);
 
@@ -92,13 +92,13 @@ internal sealed class StructGenerator : Generator
     private CodeBlock GenerateDecodeConstructor(
         Struct structDef,
         string currentNamespace,
-        string escapedIdentifier,
+        string identifier,
         string accessModifier)
     {
         IReadOnlyList<Field> sortedFields = GetSortedFields(structDef.Fields);
         bool hasRequiredField = structDef.Fields.Any(f => f.IsRequired);
 
-        var ctor = new FunctionBuilder(accessModifier, "", escapedIdentifier, FunctionType.BlockBody);
+        var ctor = new FunctionBuilder(accessModifier, "", identifier, FunctionType.BlockBody);
 
         if (hasRequiredField)
         {
@@ -107,7 +107,7 @@ internal sealed class StructGenerator : Generator
 
         ctor.AddComment(
             "summary",
-            @$"Constructs a new instance of <see cref=""{escapedIdentifier}"" /> and decodes its fields from a Slice decoder.");
+            @$"Constructs a new instance of <see cref=""{identifier}"" /> and decodes its fields from a Slice decoder.");
         ctor.AddComment("param", "name", "decoder", "The Slice decoder.");
         ctor.AddParameter("ref SliceDecoder", "decoder");
 
@@ -121,7 +121,7 @@ internal sealed class StructGenerator : Generator
 
         foreach (Field field in sortedFields)
         {
-            string fieldName = field.EntityInfo.EscapedName;
+            string fieldName = field.EntityInfo.Name;
             string decodeExpr = GetFieldDecodeExpression(field, currentNamespace);
             body.WriteLine($"this.{fieldName} = {decodeExpr};");
         }
@@ -135,19 +135,11 @@ internal sealed class StructGenerator : Generator
         return ctor.Build();
     }
 
-    private CodeBlock GenerateEncodeMethod(
-        Struct structDef,
-        string currentNamespace,
-        string accessModifier)
+    private CodeBlock GenerateEncodeMethod(Struct structDef, string currentNamespace, string accessModifier)
     {
         IReadOnlyList<Field> sortedFields = GetSortedFields(structDef.Fields);
 
-        var method = new FunctionBuilder(
-            $"{accessModifier} readonly",
-            "void",
-            "Encode",
-            FunctionType.BlockBody);
-
+        var method = new FunctionBuilder($"{accessModifier} readonly", "void", "Encode", FunctionType.BlockBody);
         method.AddComment("summary", "Encodes the fields of this struct with a Slice encoder.");
         method.AddComment("param", "name", "encoder", "The Slice encoder.");
         method.AddParameter("ref SliceEncoder", "encoder");
@@ -169,7 +161,7 @@ internal sealed class StructGenerator : Generator
             else if (field.Type.IsOptional)
             {
                 // Non-tagged optional: write bit and encode conditionally.
-                string param = $"this.{field.EntityInfo.EscapedName}";
+                string param = $"this.{field.EntityInfo.Name}";
                 string valueParam = field.Type.IsValueType ? $"{param}.Value" : param;
                 string encodeExpr = EncodeExpression(field.Type, currentNamespace, valueParam);
                 body.WriteLine($$"""

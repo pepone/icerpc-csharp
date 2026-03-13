@@ -6,6 +6,5 @@
 
   <ItemGroup>
     <ProjectReference Include="../ZeroC.Slice.Codec/ZeroC.Slice.Codec.csproj" />
-    <ProjectReference Include="../ZeroC.Slice.Compiler/ZeroC.Slice.Compiler.csproj" />
   </ItemGroup>
 </Project>

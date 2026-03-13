@@ -17,24 +17,24 @@ internal sealed class EnumWithUnderlyingGenerator : Generator
 
     internal static CodeBlock Generate(EnumWithUnderlying enumDef)
     {
-        string escapedIdentifier = enumDef.EntityInfo.EscapedName;
+        string identifier = enumDef.EntityInfo.Name;
         string accessModifier = AccessModifier(enumDef.EntityInfo);
 
         return CodeBlock.FromBlocks(
         [
-            GenerateEnumDeclaration(enumDef, escapedIdentifier, accessModifier),
-            GenerateEnumUnderlyingExtensions(enumDef, escapedIdentifier, accessModifier),
-            GenerateEnumEncoderExtensions(enumDef, escapedIdentifier, accessModifier),
-            GenerateEnumDecoderExtensions(enumDef, escapedIdentifier, accessModifier),
+            GenerateEnumDeclaration(enumDef, identifier, accessModifier),
+            GenerateEnumUnderlyingExtensions(enumDef, identifier, accessModifier),
+            GenerateEnumEncoderExtensions(enumDef, identifier, accessModifier),
+            GenerateEnumDecoderExtensions(enumDef, identifier, accessModifier),
         ]);
     }
 
     private static CodeBlock GenerateEnumDeclaration(
         EnumWithUnderlying enumDef,
-        string escapedIdentifier,
-        string accessModifier)
+    string identifier,
+    string accessModifier)
     {
-        var builder = new ContainerBuilder($"{accessModifier} enum", escapedIdentifier);
+        var builder = new ContainerBuilder($"{accessModifier} enum", identifier);
 
         builder.AddComment(
             "remarks",
@@ -52,11 +52,11 @@ internal sealed class EnumWithUnderlyingGenerator : Generator
         builder.AddBase(enumDef.Underlying.CsType);
 
         // Add enumerator declarations.
-        foreach (var enumerator in enumDef.Enumerators)
+        foreach (EnumWithUnderlying.Enumerator enumerator in enumDef.Enumerators)
         {
             var code = new CodeBlock();
             code.WriteCsAttributes(enumerator.EntityInfo.Attributes);
-            code.WriteLine($"{enumerator.EntityInfo.EscapedName} = {EnumeratorValue(enumerator)},");
+            code.WriteLine($"{enumerator.EntityInfo.Name} = {EnumeratorValue(enumerator)},");
             builder.AddBlock(code);
         }
         return builder.Build();
@@ -64,20 +64,18 @@ internal sealed class EnumWithUnderlyingGenerator : Generator
 
     private static CodeBlock GenerateEnumUnderlyingExtensions(
         EnumWithUnderlying enumDef,
-        string escapedIdentifier,
+        string identifier,
         string accessModifier)
     {
         string csType = enumDef.Underlying.CsType;
         string csTypePascal = csType.ToPascalCase();
         string scopedId = enumDef.EntityInfo.ScopedSliceId;
 
-        var builder = new ContainerBuilder(
-            $"{accessModifier} static class",
-            $"{escapedIdentifier}{csTypePascal}Extensions");
+        var builder = new ContainerBuilder($"{accessModifier} static class", $"{identifier}{csTypePascal}Extensions");
 
         builder.AddComment(
             "summary",
-            @$"Provides an extension method for creating {GetArticle(escapedIdentifier)} <see cref=""{escapedIdentifier}"" /> from {GetArticle(csType)} <see langword=""{csType}"" />.");
+            @$"Provides an extension method for creating {GetArticle(identifier)} <see cref=""{identifier}"" /> from {GetArticle(csType)} <see langword=""{csType}"" />.");
         builder.AddComment(
             "remarks",
             $"The Slice compiler generated this static class from the Slice enum <c>{scopedId}</c>.");
@@ -97,19 +95,19 @@ internal sealed class EnumWithUnderlyingGenerator : Generator
         // As{EnumName} method.
         var method = new FunctionBuilder(
             $"{accessModifier} static",
-            escapedIdentifier,
-            $"As{escapedIdentifier}",
+            identifier,
+            $"As{identifier}",
             FunctionType.ExpressionBody);
 
         method.AddParameter($"this {csType}", "value", null, "The value being converted.");
         method.AddComment(
             "summary",
-            @$"Converts a <see langword=""{csType}"" /> into the corresponding <see cref=""{escapedIdentifier}"" /> enumerator.");
+            @$"Converts a <see langword=""{csType}"" /> into the corresponding <see cref=""{identifier}"" /> enumerator.");
         method.AddComment("returns", "The enumerator.");
 
         if (enumDef.IsUnchecked || enumDef.Enumerators.Count == 0)
         {
-            method.SetBody($"({escapedIdentifier})value");
+            method.SetBody($"({identifier})value");
         }
         else
         {
@@ -127,8 +125,8 @@ internal sealed class EnumWithUnderlyingGenerator : Generator
 
             method.SetBody(
                 @$"{checkExpr} ?
-({escapedIdentifier})value :
-throw new global::System.IO.InvalidDataException($""Invalid enumerator value '{{value}}' for {escapedIdentifier}."")");
+({identifier})value :
+throw new global::System.IO.InvalidDataException($""Invalid enumerator value '{{value}}' for {identifier}."")");
 
             method.AddComment(
                 "exception",
@@ -143,20 +141,18 @@ throw new global::System.IO.InvalidDataException($""Invalid enumerator value '{{
 
     private static CodeBlock GenerateEnumEncoderExtensions(
         EnumWithUnderlying enumDef,
-        string escapedIdentifier,
+        string identifier,
         string accessModifier)
     {
         string csType = enumDef.Underlying.CsType;
         string suffix = enumDef.Underlying.Suffix;
         string scopedId = enumDef.EntityInfo.ScopedSliceId;
 
-        var builder = new ContainerBuilder(
-            $"{accessModifier} static class",
-            $"{escapedIdentifier}SliceEncoderExtensions");
+        var builder = new ContainerBuilder($"{accessModifier} static class", $"{identifier}SliceEncoderExtensions");
 
         builder.AddComment(
             "summary",
-            @$"Provides an extension method for encoding a <see cref=""{escapedIdentifier}"" /> using a <see cref=""SliceEncoder"" />.");
+            @$"Provides an extension method for encoding a <see cref=""{identifier}"" /> using a <see cref=""SliceEncoder"" />.");
         builder.AddComment(
             "remarks",
             $"The Slice compiler generated this static class from the Slice enum " +
@@ -165,16 +161,16 @@ throw new global::System.IO.InvalidDataException($""Invalid enumerator value '{{
         var method = new FunctionBuilder(
             $"{accessModifier} static",
             "void",
-            $"Encode{escapedIdentifier}",
+            $"Encode{identifier}",
             FunctionType.ExpressionBody);
 
-        method.AddComment("summary", @$"Encodes a <see cref=""{escapedIdentifier}"" /> enum.");
+        method.AddComment("summary", @$"Encodes a <see cref=""{identifier}"" /> enum.");
         method.AddParameter("this ref SliceEncoder", "encoder", null, "The Slice encoder.");
         method.AddParameter(
-            escapedIdentifier,
+            identifier,
             "value",
             null,
-            @$"The <see cref=""{escapedIdentifier}"" /> enumerator value to encode.");
+            @$"The <see cref=""{identifier}"" /> enumerator value to encode.");
 
         method.SetBody($"encoder.Encode{suffix}(({csType})value)");
 
@@ -184,7 +180,7 @@ throw new global::System.IO.InvalidDataException($""Invalid enumerator value '{{
 
     private static CodeBlock GenerateEnumDecoderExtensions(
         EnumWithUnderlying enumDef,
-        string escapedIdentifier,
+        string identifier,
         string accessModifier)
     {
         string csType = enumDef.Underlying.CsType;
@@ -194,11 +190,11 @@ throw new global::System.IO.InvalidDataException($""Invalid enumerator value '{{
 
         var builder = new ContainerBuilder(
             $"{accessModifier} static class",
-            $"{escapedIdentifier}SliceDecoderExtensions");
+            $"{identifier}SliceDecoderExtensions");
 
         builder.AddComment(
             "summary",
-            @$"Provides an extension method for decoding a <see cref=""{escapedIdentifier}"" /> using a <see cref=""SliceDecoder"" />.");
+            @$"Provides an extension method for decoding a <see cref=""{identifier}"" /> using a <see cref=""SliceDecoder"" />.");
         builder.AddComment(
             "remarks",
             $"The Slice compiler generated this static class from the Slice enum " +
@@ -206,32 +202,30 @@ throw new global::System.IO.InvalidDataException($""Invalid enumerator value '{{
 
         var method = new FunctionBuilder(
             $"{accessModifier} static",
-            escapedIdentifier,
-            $"Decode{escapedIdentifier}",
+            identifier,
+            $"Decode{identifier}",
             FunctionType.ExpressionBody);
 
-        method.AddComment("summary", @$"Decodes a <see cref=""{escapedIdentifier}"" /> enum.");
+        method.AddComment("summary", @$"Decodes a <see cref=""{identifier}"" /> enum.");
         method.AddParameter("this ref SliceDecoder", "decoder", null, "The Slice decoder.");
         method.AddComment(
             "returns",
-            @$"The decoded <see cref=""{escapedIdentifier}"" /> enumerator value.");
+            @$"The decoded <see cref=""{identifier}"" /> enumerator value.");
 
         method.SetBody(
-            $"{escapedIdentifier}{csTypePascal}Extensions.As{escapedIdentifier}(decoder.Decode{suffix}())");
+            $"{identifier}{csTypePascal}Extensions.As{identifier}(decoder.Decode{suffix}())");
 
         builder.AddBlock(method.Build());
         return builder.Build();
     }
-
-    // -- Enum helper methods --
 
     private static string EnumeratorValue(EnumWithUnderlying.Enumerator e) =>
         e.IsPositive
             ? e.AbsoluteValue.ToString(CultureInfo.InvariantCulture)
             : $"-{e.AbsoluteValue.ToString(CultureInfo.InvariantCulture)}";
 
-    private static long SignedValue(EnumWithUnderlying.Enumerator e) =>
-        e.IsPositive ? (long)e.AbsoluteValue : -(long)e.AbsoluteValue;
+    private static string GetArticle(string word) =>
+        word.Length > 0 && "aeiouAEIOU".Contains(word[0], StringComparison.Ordinal) ? "an" : "a";
 
     private static bool NeedsHashSetValidation(EnumWithUnderlying enumDef)
     {
@@ -246,6 +240,6 @@ throw new global::System.IO.InvalidDataException($""Invalid enumerator value '{{
         return enumDef.Enumerators.Count < (max - min + 1);
     }
 
-    private static string GetArticle(string word) =>
-        word.Length > 0 && "aeiouAEIOU".Contains(word[0], StringComparison.Ordinal) ? "an" : "a";
+    private static long SignedValue(EnumWithUnderlying.Enumerator e) =>
+        e.IsPositive ? (long)e.AbsoluteValue : -(long)e.AbsoluteValue;
 }
