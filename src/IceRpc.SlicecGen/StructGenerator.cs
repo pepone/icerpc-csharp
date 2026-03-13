@@ -169,17 +169,16 @@ internal sealed class StructGenerator : Generator
             else if (field.Type.IsOptional)
             {
                 // Non-tagged optional: write bit and encode conditionally.
-                string fieldName = field.FieldName;
-                string param = $"this.{fieldName}";
-                bool isValueType = field.Type.IsValueType;
-
-                body.WriteLine($"bitSequenceWriter.Write({param} != null);");
-                string valueParam = isValueType ? $"{param}.Value" : param;
+                string param = $"this.{field.FieldName}";
+                string valueParam = field.Type.IsValueType ? $"{param}.Value" : param;
                 string encodeExpr = EncodeExpression(field.Type, currentNamespace, valueParam);
-                body.WriteLine($"if ({param} != null)");
-                body.WriteLine("{");
-                body.WriteLine($"    {encodeExpr}");
-                body.WriteLine("}");
+                body.WriteLine($$"""
+                    bitSequenceWriter.Write({param} != null);
+                    if ({{param}} != null)
+                    {
+                        {{encodeExpr}}
+                    }
+                    """);
             }
             else
             {

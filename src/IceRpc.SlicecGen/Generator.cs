@@ -156,10 +156,7 @@ internal class Generator
         var code = new CodeBlock();
 
         // cs::attribute
-        foreach (var attr in field.EntityInfo.Attributes.CsAttributes())
-        {
-            code.WriteLine($"[{attr.Args[0]}]");
-        }
+        code.WriteCsAttributes(field.EntityInfo.Attributes);
 
         string typeString = FieldTypeString(field.Type, currentNamespace);
         string fieldName = field.FieldName;
@@ -259,29 +256,44 @@ internal class Generator
 
     private string GetEncodeLambda(TypeRef typeRef, string currentNamespace)
     {
-        string csType = FieldTypeString(typeRef, currentNamespace);
-        return typeRef.Symbol switch
+        if (typeRef.Symbol is Builtin b)
         {
-            Builtin builtin =>
-                $"(ref SliceEncoder encoder, {builtin.CsType} value) => encoder.Encode{builtin.Suffix}(value)",
-            EnumWithUnderlying or EnumWithFields =>
-                $"(ref SliceEncoder encoder, {csType} value) => {GetEncoderExtensionsClass(GetEntityInfo(typeRef.Symbol)!)}.Encode{GetEntityInfo(typeRef.Symbol)!.EscapedName}(ref encoder, value)",
-            _ =>
-                $"(ref SliceEncoder encoder, {csType} value) => value.Encode(ref encoder)",
-        };
+            string csType = b.CsType;
+            return $"(ref SliceEncoder encoder, {csType} value) => encoder.Encode{b.Suffix}(value)";
+        }
+        else if (typeRef.Symbol is EnumWithUnderlying or EnumWithFields)
+        {
+            EntityInfo entityInfo = GetEntityInfo(typeRef.Symbol)!;
+            string csType = FieldTypeString(typeRef, currentNamespace);
+            string extensionClass = GetEncoderExtensionsClass(entityInfo);
+            string name = entityInfo.EscapedName;
+            return $"(ref SliceEncoder encoder, {csType} value) => {extensionClass}.Encode{name}(ref encoder, value)";
+        }
+        else
+        {
+            string csType = FieldTypeString(typeRef, currentNamespace);
+            return $"(ref SliceEncoder encoder, {csType} value) => value.Encode(ref encoder)";
+        }
     }
 
     private string GetDecodeLambda(TypeRef typeRef, string currentNamespace)
     {
-        return typeRef.Symbol switch
+        if (typeRef.Symbol is Builtin b)
         {
-            Builtin builtin =>
-                $"(ref SliceDecoder decoder) => decoder.Decode{builtin.Suffix}()",
-            EnumWithUnderlying or EnumWithFields =>
-                $"(ref SliceDecoder decoder) => {GetDecoderExtensionsClass(GetEntityInfo(typeRef.Symbol)!)}.Decode{GetEntityInfo(typeRef.Symbol)!.EscapedName}(ref decoder)",
-            _ =>
-                $"(ref SliceDecoder decoder) => new {ResolveBaseType(typeRef.Symbol, currentNamespace)}(ref decoder)",
-        };
+            return $"(ref SliceDecoder decoder) => decoder.Decode{b.Suffix}()";
+        }
+        else if (typeRef.Symbol is EnumWithUnderlying or EnumWithFields)
+        {
+            EntityInfo entityInfo = GetEntityInfo(typeRef.Symbol)!;
+            string extensionClass = GetDecoderExtensionsClass(entityInfo);
+            string name = entityInfo.EscapedName;
+            return $"(ref SliceDecoder decoder) => {extensionClass}.Decode{name}(ref decoder)";
+        }
+        else
+        {
+            string csType = FieldTypeString(typeRef, currentNamespace);
+            return $"(ref SliceDecoder decoder) => new {csType}(ref decoder)";
+        }
     }
 
     private static string GetEncoderExtensionsClass(EntityInfo entityInfo)

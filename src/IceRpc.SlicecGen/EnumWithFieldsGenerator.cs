@@ -97,10 +97,7 @@ internal sealed class EnumWithFieldsGenerator : Generator
         builder.AddBase(parentIdentifier);
 
         // cs::attribute on the enumerator.
-        foreach (var attr in enumerator.EntityInfo.Attributes.CsAttributes())
-        {
-            builder.AddAttribute(attr.Args[0]);
-        }
+        builder.AddCsAttributes(enumerator.EntityInfo.Attributes);
 
         // Discriminant constant.
         var discriminantBlock = new CodeBlock();
@@ -151,17 +148,20 @@ internal sealed class EnumWithFieldsGenerator : Generator
         IReadOnlyList<Field> sortedFields = GetSortedFields(enumerator.Fields);
 
         var code = new CodeBlock();
-        code.WriteLine(
-            "[global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]");
-        code.WriteLine("internal override void Encode(ref SliceEncoder encoder)");
-        code.WriteLine("{");
-        code.WriteLine("    encoder.EncodeVarInt32(Discriminant);");
+        code.WriteLine("""
+            [global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]
+            internal override void Encode(ref SliceEncoder encoder)
+            {
+                encoder.EncodeVarInt32(Discriminant);
+            """);
 
         // For unchecked (non-compact) enums, add size placeholder.
         if (enumDef.IsUnchecked)
         {
-            code.WriteLine("    var sizePlaceholder = encoder.GetPlaceholderSpan(4);");
-            code.WriteLine("    int startPos = encoder.EncodedByteCount;");
+            code.WriteLine("""
+                    var sizePlaceholder = encoder.GetPlaceholderSpan(4);
+                    int startPos = encoder.EncodedByteCount;
+                """);
         }
 
         // Bit sequence for non-tagged optional fields.
@@ -174,8 +174,7 @@ internal sealed class EnumWithFieldsGenerator : Generator
         // Encode each field.
         foreach (Field field in sortedFields)
         {
-            string fieldName = field.FieldName;
-            string param = $"this.{fieldName}";
+            string param = $"this.{field.FieldName}";
 
             if (field.IsTagged)
             {
@@ -401,8 +400,6 @@ internal sealed class EnumWithFieldsGenerator : Generator
 
         return code;
     }
-
-    // -- Helpers --
 
     private string BuildParameterList(ImmutableList<Field> fields, string currentNamespace)
     {

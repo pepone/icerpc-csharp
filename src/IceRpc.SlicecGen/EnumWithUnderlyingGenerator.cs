@@ -34,20 +34,14 @@ internal sealed class EnumWithUnderlyingGenerator : Generator
         string escapedIdentifier,
         string accessModifier)
     {
-        string csType = enumDef.Underlying.CsType;
-        string scopedId = enumDef.EntityInfo.ScopedSliceId;
-
         var builder = new ContainerBuilder($"{accessModifier} enum", escapedIdentifier);
 
         builder.AddComment(
             "remarks",
-            $"The Slice compiler generated this enum from the Slice enum <c>{scopedId}</c>.");
+            $"The Slice compiler generated this enum from the Slice enum <c>{enumDef.EntityInfo.ScopedSliceId}</c>.");
 
         // cs::attribute
-        foreach (ZeroC.Slice.Symbols.Attribute attr in enumDef.EntityInfo.Attributes.CsAttributes())
-        {
-            builder.AddAttribute(attr.Args[0]);
-        }
+        builder.AddCsAttributes(enumDef.EntityInfo.Attributes);
 
         // [System.Flags] for unchecked enums.
         if (enumDef.IsUnchecked)
@@ -55,28 +49,17 @@ internal sealed class EnumWithUnderlyingGenerator : Generator
             builder.AddAttribute("System.Flags");
         }
 
-        builder.AddBase(csType);
+        builder.AddBase(enumDef.Underlying.CsType);
 
         // Add enumerator declarations.
-        builder.AddBlock(CodeBlock.FromBlocks(
-            enumDef.Enumerators.Select(GenerateEnumeratorDeclaration)));
-
-        return builder.Build();
-    }
-
-    private static CodeBlock GenerateEnumeratorDeclaration(EnumWithUnderlying.Enumerator enumerator)
-    {
-        var code = new CodeBlock();
-
-        foreach (var attr in enumerator.EntityInfo.Attributes.CsAttributes())
+        foreach (var enumerator in enumDef.Enumerators)
         {
-            code.WriteLine($"[{attr.Args[0]}]");
+            var code = new CodeBlock();
+            code.WriteCsAttributes(enumerator.EntityInfo.Attributes);
+            code.WriteLine($"{enumerator.EntityInfo.EscapedName} = {EnumeratorValue(enumerator)},");
+            builder.AddBlock(code);
         }
-
-        string name = enumerator.EntityInfo.EscapedName;
-        string value = EnumeratorValue(enumerator);
-        code.WriteLine($"{name} = {value},");
-        return code;
+        return builder.Build();
     }
 
     private static CodeBlock GenerateEnumUnderlyingExtensions(
@@ -87,7 +70,6 @@ internal sealed class EnumWithUnderlyingGenerator : Generator
         string csType = enumDef.Underlying.CsType;
         string csTypePascal = csType.ToPascalCase();
         string scopedId = enumDef.EntityInfo.ScopedSliceId;
-        string article = GetArticle(csType);
 
         var builder = new ContainerBuilder(
             $"{accessModifier} static class",
@@ -95,7 +77,7 @@ internal sealed class EnumWithUnderlyingGenerator : Generator
 
         builder.AddComment(
             "summary",
-            @$"Provides an extension method for creating {GetArticle(escapedIdentifier)} <see cref=""{escapedIdentifier}"" /> from {article} <see langword=""{csType}"" />.");
+            @$"Provides an extension method for creating {GetArticle(escapedIdentifier)} <see cref=""{escapedIdentifier}"" /> from {GetArticle(csType)} <see langword=""{csType}"" />.");
         builder.AddComment(
             "remarks",
             $"The Slice compiler generated this static class from the Slice enum <c>{scopedId}</c>.");
@@ -122,8 +104,7 @@ internal sealed class EnumWithUnderlyingGenerator : Generator
         method.AddParameter($"this {csType}", "value", null, "The value being converted.");
         method.AddComment(
             "summary",
-            @$"Converts a <see langword=""{csType}"" /> into the corresponding <see cref=""{escapedIdentifier}"" />
-enumerator.");
+            @$"Converts a <see langword=""{csType}"" /> into the corresponding <see cref=""{escapedIdentifier}"" /> enumerator.");
         method.AddComment("returns", "The enumerator.");
 
         if (enumDef.IsUnchecked || enumDef.Enumerators.Count == 0)
