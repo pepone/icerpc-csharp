@@ -163,8 +163,6 @@ internal class Generator
             _ => $"{param}.Encode(ref encoder);",
         };
 
-    // -- Private static methods --
-
     private static string AsNamespace(Module module)
     {
         if (module.Attributes.FindAttribute(Attribute.CsNamespace) is { } attr)
@@ -195,8 +193,6 @@ internal class Generator
         },
         _ => null,
     };
-
-    // -- Private instance methods --
 
     private string ResolveBaseType(Symbol symbol, string currentNamespace)
     {
