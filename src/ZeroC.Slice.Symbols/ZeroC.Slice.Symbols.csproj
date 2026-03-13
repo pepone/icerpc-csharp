@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <IsPackable>false</IsPackable>
+    <!-- SymbolConverter is instantiated by consumers that include these sources via Compile Include -->
+    <NoWarn>CA1812</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="../ZeroC.Slice.Compiler/*.cs" />
+    <ProjectReference Include="../ZeroC.Slice.Codec/ZeroC.Slice.Codec.csproj" />
+  </ItemGroup>
+</Project>

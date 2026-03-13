@@ -5,7 +5,7 @@ using System.Globalization;
 using ZeroC.CodeBuilder;
 using ZeroC.Slice.Symbols;
 
-namespace IceRpc.SlicecGen;
+namespace ZeroC.Slice.Generator;
 
 /// <summary>Generates C# enums and extension classes from Slice enum definitions.</summary>
 internal sealed class EnumWithUnderlyingGenerator : Generator

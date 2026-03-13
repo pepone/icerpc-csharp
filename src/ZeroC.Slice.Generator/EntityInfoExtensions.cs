@@ -3,7 +3,7 @@
 using ZeroC.Slice.Symbols;
 using Attribute = ZeroC.Slice.Symbols.Attribute;
 
-namespace IceRpc.SlicecGen;
+namespace ZeroC.Slice.Generator;
 
 /// <summary>Extension methods for <see cref="EntityInfo"/> naming helpers.</summary>
 internal static class EntityInfoExtensions

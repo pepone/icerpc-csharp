@@ -2,7 +2,7 @@
 
 using System.Collections.Immutable;
 using System.IO.Pipelines;
-using IceRpc.SlicecGen;
+using ZeroC.Slice.Generator;
 using ZeroC.CodeBuilder;
 using ZeroC.Slice.Codec;
 using ZeroC.Slice.Compiler;
@@ -38,7 +38,7 @@ reader.AdvanceTo(readResult.Buffer.End);
 await reader.CompleteAsync().ConfigureAwait(false);
 
 // Convert decoded types into rich symbols with resolved references.
-var converter = new SymbolConverter(sourceFiles.Concat(referenceFiles));
+var converter = new ZeroC.Slice.Symbols.SymbolConverter(sourceFiles.Concat(referenceFiles));
 ImmutableList<ZeroC.Slice.Symbols.SliceFile> symbolFiles = converter.ConvertFiles(sourceFiles);
 
 // Generate code for each source file.

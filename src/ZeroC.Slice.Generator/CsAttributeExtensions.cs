@@ -5,7 +5,7 @@ using ZeroC.Slice.Symbols;
 
 using Attribute = ZeroC.Slice.Symbols.Attribute;
 
-namespace IceRpc.SlicecGen;
+namespace ZeroC.Slice.Generator;
 
 /// <summary>Extension methods for writing cs::attribute attributes to code builders.</summary>
 internal static class CsAttributeExtensions

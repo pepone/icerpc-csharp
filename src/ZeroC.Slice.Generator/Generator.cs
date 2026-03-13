@@ -5,7 +5,7 @@ using ZeroC.CodeBuilder;
 using ZeroC.Slice.Symbols;
 using Attribute = ZeroC.Slice.Symbols.Attribute;
 
-namespace IceRpc.SlicecGen;
+namespace ZeroC.Slice.Generator;
 
 /// <summary>Abstract base class for code generators. Owns the type registry (symbol-to-namespace mapping) and
 /// provides type resolution and field helper methods.</summary>
@@ -73,7 +73,7 @@ internal class Generator
 
     /// <summary>Generates encode code for a non-tagged field.</summary>
     protected string EncodeField(Field field, string currentNamespace) =>
-        EncodeExpression(field.Type, currentNamespace, $"this.{field.FieldName}");
+        EncodeExpression(field.Type, currentNamespace, $"this.{field.EntityInfo.EscapedName}");
 
     /// <summary>Generates decode expression for a non-tagged field.</summary>
     protected string DecodeField(Field field, string currentNamespace) =>
@@ -82,12 +82,12 @@ internal class Generator
     /// <summary>Generates encode code for a tagged field.</summary>
     protected string EncodeTaggedField(Field field, string currentNamespace)
     {
-        string param = $"this.{field.FieldName}";
+        string param = $"this.{field.EntityInfo.EscapedName}";
         int tag = field.Tag!.Value;
 
         bool isValueType = field.Type.IsValueType;
         string csType = ResolveBaseType(field.Type.Symbol, currentNamespace);
-        string varName = $"{field.ParameterName}_";
+        string varName = $"{field.EntityInfo.ParameterName}_";
         string encodeLambda = GetEncodeLambda(field.Type, currentNamespace);
 
         if (isValueType)
@@ -159,7 +159,7 @@ internal class Generator
         code.WriteCsAttributes(field.EntityInfo.Attributes);
 
         string typeString = FieldTypeString(field.Type, currentNamespace);
-        string fieldName = field.FieldName;
+        string fieldName = field.EntityInfo.EscapedName;
         string required = field.IsRequired ? "required " : "";
         bool fieldReadonly = field.EntityInfo.Attributes.HasAttribute(Attribute.CsReadonly);
         string accessor = (parentReadonly || fieldReadonly) ? "{ get; init; }" : "{ get; set; }";

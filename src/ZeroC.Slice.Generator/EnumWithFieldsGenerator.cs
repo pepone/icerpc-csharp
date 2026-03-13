@@ -4,7 +4,7 @@ using System.Collections.Immutable;
 using ZeroC.CodeBuilder;
 using ZeroC.Slice.Symbols;
 
-namespace IceRpc.SlicecGen;
+namespace ZeroC.Slice.Generator;
 
 /// <summary>Generates Dunet discriminated unions from Slice enums with fields.</summary>
 internal sealed class EnumWithFieldsGenerator : Generator
@@ -174,7 +174,7 @@ internal sealed class EnumWithFieldsGenerator : Generator
         // Encode each field.
         foreach (Field field in sortedFields)
         {
-            string param = $"this.{field.FieldName}";
+            string param = $"this.{field.EntityInfo.EscapedName}";
 
             if (field.IsTagged)
             {
@@ -364,7 +364,7 @@ internal sealed class EnumWithFieldsGenerator : Generator
         {
             // Single non-tagged field, simple one-liner.
             Field field = sortedFields[0];
-            string paramName = field.FieldName;
+            string paramName = field.EntityInfo.EscapedName;
             string decodeExpr = GetFieldDecodeExpression(field, currentNamespace);
             code.WriteLine($"    var result = new {parentIdentifier}.{enumeratorName}({paramName}: {decodeExpr});");
         }
@@ -382,7 +382,7 @@ internal sealed class EnumWithFieldsGenerator : Generator
             for (int i = 0; i < allFields.Count; i++)
             {
                 Field field = allFields[i];
-                string paramName = field.FieldName;
+                string paramName = field.EntityInfo.EscapedName;
                 string decodeExpr = GetFieldDecodeExpression(field, currentNamespace);
                 string separator = i < allFields.Count - 1 ? "," : ");";
                 code.WriteLine($"        {paramName}: {decodeExpr}{separator}");
@@ -406,7 +406,7 @@ internal sealed class EnumWithFieldsGenerator : Generator
         return string.Join(", ", fields.Select(f =>
         {
             string typeString = FieldTypeString(f.Type, currentNamespace);
-            string paramName = f.FieldName;
+            string paramName = f.EntityInfo.EscapedName;
             return $"{typeString} {paramName}";
         }));
     }

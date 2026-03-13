@@ -5,7 +5,7 @@ using ZeroC.CodeBuilder;
 using ZeroC.Slice.Symbols;
 using Attribute = ZeroC.Slice.Symbols.Attribute;
 
-namespace IceRpc.SlicecGen;
+namespace ZeroC.Slice.Generator;
 
 /// <summary>Generates C# record structs from Slice struct definitions.</summary>
 internal sealed class StructGenerator : Generator
@@ -75,14 +75,14 @@ internal sealed class StructGenerator : Generator
         foreach (Field field in structDef.Fields)
         {
             string typeString = FieldTypeString(field.Type, currentNamespace);
-            string paramName = field.ParameterName;
+            string paramName = field.EntityInfo.ParameterName;
             ctor.AddParameter(typeString, paramName);
         }
 
         var body = new CodeBlock();
         foreach (Field field in structDef.Fields)
         {
-            body.WriteLine($"this.{field.FieldName} = {field.ParameterName};");
+            body.WriteLine($"this.{field.EntityInfo.EscapedName} = {field.EntityInfo.ParameterName};");
         }
         ctor.SetBody(body);
 
@@ -121,7 +121,7 @@ internal sealed class StructGenerator : Generator
 
         foreach (Field field in sortedFields)
         {
-            string fieldName = field.FieldName;
+            string fieldName = field.EntityInfo.EscapedName;
             string decodeExpr = GetFieldDecodeExpression(field, currentNamespace);
             body.WriteLine($"this.{fieldName} = {decodeExpr};");
         }
@@ -169,7 +169,7 @@ internal sealed class StructGenerator : Generator
             else if (field.Type.IsOptional)
             {
                 // Non-tagged optional: write bit and encode conditionally.
-                string param = $"this.{field.FieldName}";
+                string param = $"this.{field.EntityInfo.EscapedName}";
                 string valueParam = field.Type.IsValueType ? $"{param}.Value" : param;
                 string encodeExpr = EncodeExpression(field.Type, currentNamespace, valueParam);
                 body.WriteLine($$"""

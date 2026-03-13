@@ -2,7 +2,7 @@
 
 using System.Text;
 
-namespace IceRpc.SlicecGen;
+namespace ZeroC.Slice.Generator;
 
 /// <summary>String extension methods for converting Slice identifiers to C# casing conventions.</summary>
 internal static class StringExtensions

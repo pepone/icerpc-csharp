@@ -1,7 +1,5 @@
 // Copyright (c) ZeroC, Inc.
 
-using IceRpc.SlicecGen;
-
 namespace ZeroC.Slice.Symbols;
 
 /// <summary>
@@ -34,14 +32,4 @@ public record class Field
     /// Gets a value indicating whether this field should have the 'required' keyword (non-optional reference type).
     /// </summary>
     public bool IsRequired => !Type.IsOptional && !Type.IsValueType;
-
-    /// <summary>
-    /// Gets the field property name (PascalCase, keyword-escaped).
-    /// </summary>
-    public string FieldName => EntityInfo.EscapedName;
-
-    /// <summary>
-    /// Gets the field parameter name (camelCase, keyword-escaped).
-    /// </summary>
-    public string ParameterName => EntityInfo.ParameterName;
 }
