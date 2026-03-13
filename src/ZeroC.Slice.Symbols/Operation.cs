@@ -10,7 +10,7 @@ namespace ZeroC.Slice.Symbols;
 public record class Operation
 {
     /// <summary>
-    /// Gets the entity info for this operation, which includes the identifier and attributes.
+    /// Gets the operation's entity information.
     /// </summary>
     public required EntityInfo EntityInfo { get; init; }
 
@@ -25,8 +25,8 @@ public record class Operation
     public required ImmutableList<Field> Parameters { get; init; }
 
     /// <summary>
-    /// Gets a value indicating whether this operation has a streamed parameter. When <c>true</c>, the last parameter
-    /// in the <see cref="Parameters"/> list is a streamed parameter.
+    /// Gets a value indicating whether this operation has a streamed parameter. When <see langword="true"/>, the last
+    /// parameter in the <see cref="Parameters"/> list is a streamed parameter.
     /// </summary>
     public required bool HasStreamedParameter { get; init; }
 
@@ -36,8 +36,8 @@ public record class Operation
     public required ImmutableList<Field> ReturnType { get; init; }
 
     /// <summary>
-    /// Gets a value indicating whether this operation has a streamed return. When <c>true</c>, the last return type
-    /// in the <see cref="ReturnType"/> list is a streamed return.
+    /// Gets a value indicating whether this operation has a streamed return. When <see langword="true"/>, the last
+    /// return type in the <see cref="ReturnType"/> list is a streamed return.
     /// </summary> 
     public required bool HasStreamedReturn { get; init; }
 }

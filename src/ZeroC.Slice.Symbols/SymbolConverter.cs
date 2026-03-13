@@ -5,11 +5,10 @@ using Compiler = ZeroC.Slice.Compiler;
 
 namespace ZeroC.Slice.Symbols;
 
-/// <summary>Converts decoded Slice compiler types (string-based TypeIds) into rich symbol types (direct object
-/// references).</summary>
-internal sealed class SymbolConverter
+/// <summary>Converts decoded Slice compiler types into rich symbol types intended to use in code generators.</summary>
+public sealed class SymbolConverter
 {
-    private static readonly Dictionary<string, Builtin> Builtins = new(StringComparer.Ordinal)
+    private static readonly Dictionary<string, Builtin> _builtins = new(StringComparer.Ordinal)
     {
         ["bool"] = new() { Kind = BuiltinKind.Bool },
         ["int8"] = new() { Kind = BuiltinKind.Int8 },
@@ -35,7 +34,8 @@ internal sealed class SymbolConverter
     // Cache of converted named symbols, keyed by fully-scoped TypeId.
     private readonly Dictionary<string, Symbol> _cache = new(StringComparer.Ordinal);
 
-    internal SymbolConverter(IEnumerable<Compiler.SliceFile> allFiles)
+    /// <summary>Creates a new symbol converter, indexing all named types from the given files.</summary>
+    public SymbolConverter(IEnumerable<Compiler.SliceFile> allFiles)
     {
         _named = new(StringComparer.Ordinal);
 
@@ -55,7 +55,7 @@ internal sealed class SymbolConverter
     }
 
     /// <summary>Converts source files into rich symbol types with all TypeRefs resolved.</summary>
-    internal ImmutableList<SliceFile> ConvertFiles(IEnumerable<Compiler.SliceFile> sourceFiles) =>
+    public ImmutableList<SliceFile> ConvertFiles(IEnumerable<Compiler.SliceFile> sourceFiles) =>
         sourceFiles.Select(ConvertFile).ToImmutableList();
 
     private SliceFile ConvertFile(Compiler.SliceFile file)
@@ -95,7 +95,7 @@ internal sealed class SymbolConverter
     private Symbol ResolveTypeId(string typeId, Compiler.SliceFile currentFile)
     {
         // Builtin.
-        if (Builtins.TryGetValue(typeId, out Builtin? prim))
+        if (_builtins.TryGetValue(typeId, out Builtin? prim))
         {
             return prim;
         }
@@ -166,12 +166,11 @@ internal sealed class SymbolConverter
 
     private Symbol ConvertEnum(Compiler.Enum raw, Compiler.SliceFile file, Module module)
     {
-        if (raw.Underlying is string u && Builtins.TryGetValue(u, out var builtin))
+        if (raw.Underlying is string u && _builtins.TryGetValue(u, out var builtin))
         {
             return new EnumWithUnderlying
             {
                 EntityInfo = ConvertEntityInfo(raw.EntityInfo, module),
-                IsCompact = raw.IsCompact,
                 IsUnchecked = raw.IsUnchecked,
                 Underlying = builtin,
                 Enumerators = raw.Enumerators.Select(e => new EnumWithUnderlying.Enumerator

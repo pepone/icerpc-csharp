@@ -10,12 +10,13 @@ namespace ZeroC.Slice.Symbols;
 public record class EnumWithFields : Symbol
 {
     /// <summary>
-    /// Gets the entity info for this enumeration.
+    /// Gets the enum's entity information.
     /// </summary>
     public required EntityInfo EntityInfo { get; init; }
 
     /// <summary>
-    /// Gets a value indicating whether this enumeration is a compact enumeration.
+    /// Gets a value indicating whether this enumeration is a compact enumeration. Compact enumerations cannot include
+    /// unknown enumertors.
     /// </summary>
     public required bool IsCompact { get; init; }
 
@@ -35,7 +36,7 @@ public record class EnumWithFields : Symbol
     public record class Enumerator
     {
         /// <summary>
-        /// Gets the entity info for this enumerator.
+        /// Gets the enumerator's entity information.
         /// </summary>
         public required EntityInfo EntityInfo { get; init; }
 

@@ -10,12 +10,12 @@ namespace ZeroC.Slice.Symbols;
 public record class EntityInfo
 {
     /// <summary>
-    /// Gets the identifier of the entity.
+    /// Gets the entity's identifier.
     /// </summary>
     public required string Identifier { get; init; }
 
     /// <summary>
-    /// Gets the attributes associated with the entity.
+    /// Gets the entity's attributes.
     /// </summary>
     public required ImmutableList<Attribute> Attributes { get; init; }
 

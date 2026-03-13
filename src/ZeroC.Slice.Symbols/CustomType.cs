@@ -3,8 +3,8 @@
 namespace ZeroC.Slice.Symbols;
 
 /// <summary>
-/// Represents a custom type in Slice, where the user defines the mapping to the
-/// target language as well as the encoding and decoding methods.
+/// Represents a custom type defined in Slice, where the user defines the target language mapped type and provides the
+/// encode and decode methods.
 /// </summary>
 public record class CustomType : Symbol
 {

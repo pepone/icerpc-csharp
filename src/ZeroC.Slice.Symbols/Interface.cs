@@ -10,7 +10,7 @@ namespace ZeroC.Slice.Symbols;
 public record class Interface : Symbol
 {
     /// <summary>
-    /// Gets the entity info for this interface, which includes the identifier and attributes.
+    /// Gets the interface's entity information.
     /// </summary>
     public required EntityInfo EntityInfo { get; init; }
 

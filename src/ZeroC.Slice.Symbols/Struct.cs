@@ -10,7 +10,7 @@ namespace ZeroC.Slice.Symbols;
 public record class Struct : Symbol
 {
     /// <summary>
-    ///  Gets the information for the entity associated with this struct.
+    ///  Gets the struct's entity information, including its name and namespace.
     /// </summary>
     public required EntityInfo EntityInfo { get; init; }
 

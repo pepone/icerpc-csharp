@@ -10,7 +10,7 @@ namespace ZeroC.Slice.Symbols;
 public record class TypeRef
 {
     /// <summary>
-    /// Gets the symbol associated with the referenced type.
+    /// Gets the symbol this reference points to.
     /// </summary>
     public required Symbol Symbol { get; init; }
 
@@ -20,7 +20,7 @@ public record class TypeRef
     public required bool IsOptional { get; init; }
 
     /// <summary>
-    /// Gets the list of attributes associated with the referenced type.
+    /// Gets the list of attributes for the reference.
     /// </summary>
     public required ImmutableList<Attribute> Attributes { get; init; }
 

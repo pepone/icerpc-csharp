@@ -3,7 +3,7 @@
 namespace ZeroC.Slice.Symbols;
 
 /// <summary>
-/// Represents a built-in type in Slice, such as int32, string, etc.
+/// Represents a the built-in Slice types, such as int32, string, etc.
 /// </summary>
 public enum BuiltinKind
 {

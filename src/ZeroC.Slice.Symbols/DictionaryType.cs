@@ -3,17 +3,17 @@
 namespace ZeroC.Slice.Symbols;
 
 /// <summary>
-/// Represents a dictionary type in Slice, where the user defines the key and value types.
+/// Represents a dictionary type in Slice.
 /// </summary>
 public record class DictionaryType : Symbol
 {
     /// <summary>
-    /// Gets the type of the keys in the dictionary.
+    /// Gets the dictionary's key type.
     /// </summary>
     public required TypeRef KeyType { get; init; }
 
     /// <summary>
-    /// Gets the type of the values in the dictionary.
+    /// Gets the dictionary's value type.
     /// </summary>
     public required TypeRef ValueType { get; init; }
 }

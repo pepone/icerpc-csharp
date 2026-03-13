@@ -20,7 +20,7 @@ public record class SliceFile
     public required Module Module { get; init; }
 
     /// <summary>
-    /// Gets the list of attributes associated with the Slice file.
+    /// Gets the list of file-level attributes defined in the Slice file.
     /// </summary>
     public required ImmutableList<Attribute> Attributes { get; init; }
 

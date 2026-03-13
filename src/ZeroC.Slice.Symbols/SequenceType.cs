@@ -8,7 +8,7 @@ namespace ZeroC.Slice.Symbols;
 public record class SequenceType : Symbol
 {
     /// <summary>
-    /// Gets the type of the elements in the sequence.
+    /// Gets the sequence element type.
     /// </summary>
     public required TypeRef ElementType { get; init; }
 }

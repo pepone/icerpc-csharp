@@ -8,12 +8,12 @@ namespace ZeroC.Slice.Symbols;
 public record class TypeAlias : Symbol
 {
     /// <summary>
-    /// Gets the information for the entity associated with this type alias.
+    /// Gets the entity information for this type alias.
     /// </summary>
     public required EntityInfo EntityInfo { get; init; }
 
     /// <summary>
-    /// Gets the underlying type of this type alias.
+    /// Gets the type reference associated with this type alias.
     /// </summary>
     public required TypeRef UnderlyingType { get; init; }
 }

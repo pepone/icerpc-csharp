@@ -9,22 +9,23 @@ namespace ZeroC.Slice.Symbols;
 public record class Field
 {
     /// <summary>
-    /// Gets the entity info for this field.
+    /// Gets the field's entity information.
     /// </summary>
     public required EntityInfo EntityInfo { get; init; }
 
     /// <summary>
-    /// Gets the tag for this field, if any.
+    /// Gets the tag for this field, it is <see langword="null"/> for non tagged fields.
     /// </summary>
     public required int? Tag { get; init; }
 
     /// <summary>
-    /// Gets the type reference for this field.
+    /// Gets the field's type.
     /// </summary>
     public required TypeRef Type { get; init; }
 
     /// <summary>
-    /// Gets a value indicating whether this field is tagged.
+    /// Gets a value indicating whether this field is tagged. When <see langword="true"/>, the <see cref="Tag"/>
+    /// property has a value; otherwise, it is <see langword="null"/>.
     /// </summary>
     public bool IsTagged => Tag.HasValue;
 

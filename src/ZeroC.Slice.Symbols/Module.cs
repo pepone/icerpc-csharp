@@ -5,17 +5,17 @@ using System.Collections.Immutable;
 namespace ZeroC.Slice.Symbols;
 
 /// <summary>
-/// Represents a module defined in Slice. 
+/// Represents a module defined in Slice.
 /// </summary>
 public record class Module
 {
     /// <summary>
-    /// Gets the identifier for this module.
+    /// Gets the module's identifier.
     /// </summary>
     public required string Identifier { get; init; }
 
     /// <summary>
-    /// Gets the list of attributes for this module.
+    /// Gets the module's attributes.
     /// </summary>
     public required ImmutableList<Attribute> Attributes { get; init; }
 }
