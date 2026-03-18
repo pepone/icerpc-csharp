@@ -18,9 +18,12 @@ internal static class FieldExtensions
 
 
     /// <summary>Generates encode code for a tagged field.</summary>
-    internal static string EncodeTaggedField(this Field field, string currentNamespace)
+    /// <param name="field">The tagged field.</param>
+    /// <param name="currentNamespace">The current C# namespace.</param>
+    /// <param name="paramPrefix">Prefix for the parameter name ("this." for struct fields, "" for operation params).</param>
+    internal static string EncodeTaggedField(this Field field, string currentNamespace, string paramPrefix = "this.")
     {
-        string param = $"this.{field.Name}";
+        string param = $"{paramPrefix}{field.Name}";
         int tag = field.Tag!.Value;
 
         string csType = field.DataType.FieldTypeString(false, currentNamespace);
