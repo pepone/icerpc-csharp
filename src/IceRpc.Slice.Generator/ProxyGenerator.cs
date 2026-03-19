@@ -612,14 +612,14 @@ internal static class ProxyGenerator
         return new CodeBlock($$"""
             var pipe_ = new global::System.IO.Pipelines.Pipe(
                 encodeOptions?.PipeOptions ?? SliceEncodeOptions.Default.PipeOptions);
-            var encoder = new SliceEncoder(pipe_.Writer);
+            var encoder_ = new SliceEncoder(pipe_.Writer);
 
-            Span<byte> sizePlaceholder_ = encoder.GetPlaceholderSpan(4);
-            int startPos_ = encoder.EncodedByteCount;
+            Span<byte> sizePlaceholder_ = encoder_.GetPlaceholderSpan(4);
+            int startPos_ = encoder_.EncodedByteCount;
 
             {{encodeBody}}
 
-            SliceEncoder.EncodeVarUInt62((ulong)(encoder.EncodedByteCount - startPos_), sizePlaceholder_);
+            SliceEncoder.EncodeVarUInt62((ulong)(encoder_.EncodedByteCount - startPos_), sizePlaceholder_);
 
             pipe_.Writer.Complete();
             return pipe_.Reader;

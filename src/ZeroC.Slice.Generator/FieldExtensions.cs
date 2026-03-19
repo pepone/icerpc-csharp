@@ -22,7 +22,12 @@ internal static class FieldExtensions
     /// <param name="field">The tagged field.</param>
     /// <param name="currentNamespace">The current C# namespace.</param>
     /// <param name="paramPrefix">Prefix for the parameter name ("this." for struct fields, "" for operation params).</param>
-    internal static string EncodeTaggedField(this Field field, string currentNamespace, string paramPrefix = "this.")
+    /// <param name="encoderName">The name of the encoder variable in the generated code.</param>
+    internal static string EncodeTaggedField(
+        this Field field,
+        string currentNamespace,
+        string paramPrefix = "this.",
+        string encoderName = "encoder")
     {
         string param = $"{paramPrefix}{field.Name}";
         int tag = field.Tag!.Value;
@@ -34,8 +39,8 @@ internal static class FieldExtensions
         if (field.DataType.IsValueType)
         {
             string encodeCall = (field.DataType.FixedSize is int fixedSizeValue)
-                ? $"encoder.EncodeTagged({tag}, size: {fixedSizeValue}, {varName}, {encodeLambda});"
-                : $"encoder.EncodeTagged({tag}, {varName}, {encodeLambda});";
+                ? $"{encoderName}.EncodeTagged({tag}, size: {fixedSizeValue}, {varName}, {encodeLambda});"
+                : $"{encoderName}.EncodeTagged({tag}, {varName}, {encodeLambda});";
             return @$"if ({param} is {csType} {varName})
 {{
     {encodeCall}
@@ -43,18 +48,18 @@ internal static class FieldExtensions
         }
         else if (GetCollectionElementSize(field.DataType.Type) is int elemSize)
         {
-            string sizeExpr = $"encoder.GetSizeLength(count_) + {elemSize} * count_";
+            string sizeExpr = $"{encoderName}.GetSizeLength(count_) + {elemSize} * count_";
             return @$"if ({param} is {csType} {varName})
 {{
     int count_ = {param}.Count();
-    encoder.EncodeTagged({tag}, size: {sizeExpr}, {varName}, {encodeLambda});
+    {encoderName}.EncodeTagged({tag}, size: {sizeExpr}, {varName}, {encodeLambda});
 }}";
         }
         else
         {
             return @$"if ({param} is {csType} {varName})
 {{
-    encoder.EncodeTagged({tag}, {varName}, {encodeLambda});
+    {encoderName}.EncodeTagged({tag}, {varName}, {encodeLambda});
 }}";
         }
     }
@@ -111,11 +116,13 @@ internal static class FieldExtensions
     /// <param name="currentNamespace">The current C# namespace.</param>
     /// <param name="paramPrefix">Prefix for field access ("this." for struct/enum fields, "" for operation params).</param>
     /// <param name="includeTagEndMarker">Whether to append the Slice2 tag end marker.</param>
+    /// <param name="encoderName">The name of the encoder variable in the generated code.</param>
     internal static CodeBlock GenerateEncodeBody(
         this ImmutableList<Field> fields,
         string currentNamespace,
         string paramPrefix = "this.",
-        bool includeTagEndMarker = true)
+        bool includeTagEndMarker = true,
+        string encoderName = "encoder")
     {
         IReadOnlyList<Field> sortedFields = fields.GetSortedFields();
         var body = new CodeBlock();
@@ -123,7 +130,7 @@ internal static class FieldExtensions
         int bitSequenceSize = fields.GetBitSequenceSize();
         if (bitSequenceSize > 0)
         {
-            body.WriteLine($"var bitSequenceWriter = encoder.GetBitSequenceWriter({bitSequenceSize});");
+            body.WriteLine($"var bitSequenceWriter = {encoderName}.GetBitSequenceWriter({bitSequenceSize});");
         }
 
         foreach (Field field in sortedFields)
@@ -132,12 +139,12 @@ internal static class FieldExtensions
 
             if (field.IsTagged)
             {
-                body.WriteLine(field.EncodeTaggedField(currentNamespace, paramPrefix));
+                body.WriteLine(field.EncodeTaggedField(currentNamespace, paramPrefix, encoderName));
             }
             else if (field.DataTypeIsOptional)
             {
                 string valueParam = field.DataType.IsValueType ? $"{param}.Value" : param;
-                CodeBlock encodeExpr = field.DataType.EncodeExpression(currentNamespace, valueParam);
+                CodeBlock encodeExpr = field.DataType.EncodeExpression(currentNamespace, valueParam, encoderName);
                 body.WriteLine($$"""
                     bitSequenceWriter.Write({{param}} != null);
                     if ({{param}} != null)
@@ -148,14 +155,14 @@ internal static class FieldExtensions
             }
             else
             {
-                CodeBlock encodeExpr = field.DataType.EncodeExpression(currentNamespace, param);
+                CodeBlock encodeExpr = field.DataType.EncodeExpression(currentNamespace, param, encoderName);
                 body.WriteLine($"{encodeExpr};");
             }
         }
 
         if (includeTagEndMarker)
         {
-            body.WriteLine("encoder.EncodeVarInt32(Slice2Definitions.TagEndMarker);");
+            body.WriteLine($"{encoderName}.EncodeVarInt32(Slice2Definitions.TagEndMarker);");
         }
 
         return body;

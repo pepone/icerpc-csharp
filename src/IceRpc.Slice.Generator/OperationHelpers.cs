@@ -48,7 +48,7 @@ internal static class OperationHelpers
         {
             return null;
         }
-        return fields.GenerateEncodeBody(currentNamespace, paramPrefix: "");
+        return fields.GenerateEncodeBody(currentNamespace, paramPrefix: "", encoderName: "encoder_");
     }
 
     /// <summary>Generates a decode lambda expression for decoding operation fields (parameters or return values).

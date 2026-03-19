@@ -9,4 +9,5 @@ await GeneratorDriver.RunAsync(
         ? CodeBlock.FromBlocks([ProxyGenerator.Generate(interfaceDef), DispatchGenerator.Generate(interfaceDef)])
         : null,
     mapOutputPath: path => Path.ChangeExtension(path, ".IceRpc.cs"),
-    usings: ["IceRpc.Slice", "IceRpc.Slice.Operations", "ZeroC.Slice.Codec"]).ConfigureAwait(false);
+    usings: ["IceRpc.Slice", "IceRpc.Slice.Operations", "ZeroC.Slice.Codec"],
+    emitSliceAttribute: false).ConfigureAwait(false);
