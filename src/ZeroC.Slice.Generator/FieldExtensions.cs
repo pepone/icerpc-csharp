@@ -1,6 +1,7 @@
 // Copyright (c) ZeroC, Inc.
 
 using System.Collections.Immutable;
+using ZeroC.CodeBuilder;
 using ZeroC.Slice.Symbols;
 
 namespace ZeroC.Slice.Generator;
@@ -101,6 +102,63 @@ internal static class FieldExtensions
         var tagged = fields.Where(f => f.IsTagged).OrderBy(f => f.Tag!.Value).ToList();
         nonTagged.AddRange(tagged);
         return nonTagged;
+    }
+
+    /// <summary>Generates the encode body for a list of fields. Used by struct, enum-with-fields, and operation
+    /// encode methods. The logic is the same: bit sequence for optionals, tagged fields, regular fields, and
+    /// an optional tag end marker.</summary>
+    /// <param name="fields">The fields to encode.</param>
+    /// <param name="currentNamespace">The current C# namespace.</param>
+    /// <param name="paramPrefix">Prefix for field access ("this." for struct/enum fields, "" for operation params).</param>
+    /// <param name="includeTagEndMarker">Whether to append the Slice2 tag end marker.</param>
+    internal static CodeBlock GenerateEncodeBody(
+        this ImmutableList<Field> fields,
+        string currentNamespace,
+        string paramPrefix = "this.",
+        bool includeTagEndMarker = true)
+    {
+        IReadOnlyList<Field> sortedFields = fields.GetSortedFields();
+        var body = new CodeBlock();
+
+        int bitSequenceSize = fields.GetBitSequenceSize();
+        if (bitSequenceSize > 0)
+        {
+            body.WriteLine($"var bitSequenceWriter = encoder.GetBitSequenceWriter({bitSequenceSize});");
+        }
+
+        foreach (Field field in sortedFields)
+        {
+            string param = $"{paramPrefix}{field.Name}";
+
+            if (field.IsTagged)
+            {
+                body.WriteLine(field.EncodeTaggedField(currentNamespace, paramPrefix));
+            }
+            else if (field.DataTypeIsOptional)
+            {
+                string valueParam = field.DataType.IsValueType ? $"{param}.Value" : param;
+                CodeBlock encodeExpr = field.DataType.EncodeExpression(currentNamespace, valueParam);
+                body.WriteLine($$"""
+                    bitSequenceWriter.Write({{param}} != null);
+                    if ({{param}} != null)
+                    {
+                        {{encodeExpr.Indent()}};
+                    }
+                    """);
+            }
+            else
+            {
+                CodeBlock encodeExpr = field.DataType.EncodeExpression(currentNamespace, param);
+                body.WriteLine($"{encodeExpr};");
+            }
+        }
+
+        if (includeTagEndMarker)
+        {
+            body.WriteLine("encoder.EncodeVarInt32(Slice2Definitions.TagEndMarker);");
+        }
+
+        return body;
     }
 
     extension(Field value)
