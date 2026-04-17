@@ -7,8 +7,7 @@ namespace IceRpc.Transports.Slic;
 public sealed record class SlicTransportOptions
 {
     /// <summary>Gets or sets the idle timeout. This timeout is used to monitor the transport connection health. If no
-    /// data is received within the idle timeout period, the transport connection is aborted.
-    /// </summary>
+    /// data is received within the idle timeout period, the transport connection is aborted.</summary>
     /// <value>The idle timeout. Defaults to <c>30</c> s.</value>
     public TimeSpan IdleTimeout
     {
@@ -26,21 +25,16 @@ public sealed record class SlicTransportOptions
     public int InitialStreamWindowSize
     {
         get => _initialStreamWindowSize;
-        set => _initialStreamWindowSize =
-            value < 1024 ?
+        // No upper bound check needed because MaxWindowSize is int.MaxValue.
+        set => _initialStreamWindowSize = value >= 1024 ? value :
             throw new ArgumentException(
                 $"The {nameof(InitialStreamWindowSize)} value cannot be less than 1 KB.",
-                nameof(value)) :
-            value > MaxWindowSize ?
-            throw new ArgumentException(
-                $"The {nameof(InitialStreamWindowSize)} value cannot be larger than {MaxWindowSize}.",
-                nameof(value)) :
-            value;
+                nameof(value));
     }
 
     /// <summary>Gets or sets the maximum stream frame size in bytes.</summary>
-    /// <value>The maximum stream frame size in bytes. It can't be less than <c>1</c> KB. Defaults to <c>32</c>
-    /// KB.</value>
+    /// <value>The maximum stream frame size in bytes. It can't be less than <c>1</c> KB. Defaults to <c>32</c> KB.
+    /// </value>
     public int MaxStreamFrameSize
     {
         get => _maxStreamFrameSize;
