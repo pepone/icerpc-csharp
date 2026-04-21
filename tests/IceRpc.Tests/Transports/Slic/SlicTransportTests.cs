@@ -1561,6 +1561,71 @@ public class SlicTransportTests
         await writeTask2;
     }
 
+    [Test]
+    public async Task Ping_flood_closes_connection()
+    {
+        // Arrange: use the test duplex transport decorator to hold the server's writes after the
+        // Slic handshake. This deterministically blocks the WriterTask, so Pong replies pile up.
+        await using ServiceProvider provider = new ServiceCollection()
+            .AddSlicTest()
+            .AddTestDuplexTransportDecorator()
+            .BuildServiceProvider(validateScopes: true);
+
+        var duplexClientTransport = provider.GetRequiredService<IDuplexClientTransport>();
+        var serverTransportDecorator = provider.GetRequiredService<TestDuplexServerTransportDecorator>();
+        var listener = provider.GetRequiredService<IListener<IMultiplexedConnection>>();
+        var acceptTask = listener.AcceptAsync(default);
+        using var duplexClientConnection = duplexClientTransport.CreateConnection(
+            listener.TransportAddress,
+            new DuplexConnectionOptions(),
+            clientAuthenticationOptions: null);
+        Task connectTask = duplexClientConnection.ConnectAsync(default);
+        (var multiplexedServerConnection, _) = await acceptTask;
+        await using var serverConnection = multiplexedServerConnection;
+        await connectTask;
+        using var reader = new DuplexConnectionReader(duplexClientConnection, MemoryPool<byte>.Shared, 4096);
+
+        // Complete the Slic handshake.
+        await WriteInitializeFrameAsync(duplexClientConnection, version: 1);
+        await multiplexedServerConnection.ConnectAsync(default);
+        await ReadFrameAsync(reader);
+
+        // Now hold the server's writes. The WriterTask will block on the next WriteAsync, preventing
+        // completion callbacks from firing.
+        var serverDuplexConnection = serverTransportDecorator.LastAcceptedConnection;
+        Task writeCalledTask = serverDuplexConnection.Operations.GetCalledTask(DuplexTransportOperations.Write);
+        serverDuplexConnection.Operations.Hold = DuplexTransportOperations.Write;
+
+        ValueTask<IMultiplexedStream> acceptStreamTask = multiplexedServerConnection.AcceptStreamAsync(default);
+
+        // Send one Ping to trigger a Pong write attempt, then wait for the write to be held.
+        await WriteFrameAsync(duplexClientConnection, FrameType.Ping, new PingBody(0).Encode);
+        await writeCalledTask;
+
+        try
+        {
+            // Act: now flood 20 Ping frames. The WriterTask is blocked, so all Pong replies pile up in
+            // the shared writer. After 16+ pending Pongs, the server closes the connection.
+            for (int i = 0; i < 20; i++)
+            {
+                await WriteFrameAsync(duplexClientConnection, FrameType.Ping, new PingBody(0).Encode);
+            }
+
+            // Assert: the server connection should close due to the pending Pong reply limit.
+            IceRpcException? exception =
+                Assert.ThrowsAsync<IceRpcException>(async () => await acceptStreamTask);
+            Assert.That(exception!.IceRpcError, Is.EqualTo(IceRpcError.ConnectionAborted));
+            Assert.That(
+                exception.Message,
+                Does.Contain("Ping frames faster than Pong replies can be drained"));
+        }
+        finally
+        {
+            // Release the held write to allow cleanup even when the test fails early.
+            serverDuplexConnection.Operations.Hold = DuplexTransportOperations.None;
+        }
+    }
+
     private static Task WriteStreamFrameAsync(
         IDuplexConnection connection,
         FrameType frameType,

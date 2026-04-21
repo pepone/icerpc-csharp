@@ -14,7 +14,7 @@ namespace IceRpc.Transports.Slic.Internal;
 
 /// <summary>The Slic connection implements an <see cref="IMultiplexedConnection" /> on top of a <see
 /// cref="IDuplexConnection" />.</summary>
-internal class SlicConnection : IMultiplexedConnection
+internal class SlicConnection : IMultiplexedConnection, SlicDuplexConnectionWriter.ICompletionCallback
 {
     /// <summary>Gets a value indicating whether or not this is the server-side of the connection.</summary>
     internal bool IsServer { get; }
@@ -50,6 +50,10 @@ internal class SlicConnection : IMultiplexedConnection
     // size placeholder. Stream data frames are not subject to this limit; they are gated by per-stream flow control.
     private const int MaxControlFrameBodySize = 16_383;
 
+    // The maximum number of outgoing Pong replies that can be pending in the shared writer before the connection is
+    // closed. This prevents a peer from flooding Ping frames to cause unbounded control-frame buffering.
+    private const int MaxPendingPongReplies = 16;
+
     // The ratio used to compute the StreamWindowUpdateThreshold. For now, the stream window update is sent when the
     // window size grows over InitialStreamWindowSize / StreamWindowUpdateRatio.
     private const int StreamWindowUpdateRatio = 2;
@@ -81,6 +85,7 @@ internal class SlicConnection : IMultiplexedConnection
     private IceRpcError? _peerCloseError;
     private TimeSpan _peerIdleTimeout = Timeout.InfiniteTimeSpan;
     private int _pendingPongCount;
+    private int _pendingPongReplyCount;
     private Task? _readFramesTask;
 
     private readonly ConcurrentDictionary<ulong, SlicStream> _streams = new();
@@ -96,6 +101,10 @@ internal class SlicConnection : IMultiplexedConnection
     // followed by the shutdown of the duplex connection and if CloseAsync is called at the same time on the server
     // connection.
     private bool _writerIsShutdown;
+
+    /// <inheritdoc/>
+    void SlicDuplexConnectionWriter.ICompletionCallback.WriteCompleted(int creditBytes) =>
+        Interlocked.Decrement(ref _pendingPongReplyCount);
 
     public async ValueTask<IMultiplexedStream> AcceptStreamAsync(CancellationToken cancellationToken)
     {
@@ -1200,8 +1209,28 @@ internal class SlicConnection : IMultiplexedConnection
                 (ref SliceDecoder decoder) => new PingBody(ref decoder),
                 cancellationToken).ConfigureAwait(false);
 
-            // Return a pong frame with the ping payload.
-            WriteConnectionFrame(FrameType.Pong, new PongBody(pingBody.Payload).Encode);
+            // Check if the peer is flooding Ping frames faster than we can drain Pong replies.
+            if (Interlocked.Increment(ref _pendingPongReplyCount) > MaxPendingPongReplies)
+            {
+                throw new IceRpcException(
+                    IceRpcError.ConnectionAborted,
+                    "The peer is sending Ping frames faster than Pong replies can be drained.");
+            }
+
+            // Return a pong frame with the ping payload and enqueue a completion entry to track when
+            // the Pong is actually written to the duplex connection.
+            lock (_mutex)
+            {
+                if (_isClosed)
+                {
+                    throw new IceRpcException(
+                        _peerCloseError ?? IceRpcError.ConnectionAborted,
+                        _closedMessage);
+                }
+                WriteFrame(FrameType.Pong, streamId: null, new PongBody(pingBody.Payload).Encode);
+                _duplexConnectionWriter.EnqueueCompletion(creditBytes: 0, target: this);
+                _duplexConnectionWriter.Flush();
+            }
         }
 
         async Task ReadPongFrameAsync(int size, CancellationToken cancellationToken)
