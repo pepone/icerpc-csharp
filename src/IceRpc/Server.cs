@@ -516,30 +516,40 @@ public sealed class Server : IAsyncDisposable
 
         async Task DisposeDetachedConnectionAsync(IProtocolConnection connection, bool withShutdown)
         {
-            if (withShutdown)
+            try
             {
-                // _disposedCts is not disposed since we own a _backgroundConnectionDisposeCount.
-                using var cts = CancellationTokenSource.CreateLinkedTokenSource(_disposedCts.Token);
-                cts.CancelAfter(_shutdownTimeout);
+                if (withShutdown)
+                {
+                    // _disposedCts is not disposed since we own a _backgroundConnectionDisposeCount.
+                    using var cts = CancellationTokenSource.CreateLinkedTokenSource(_disposedCts.Token);
+                    cts.CancelAfter(_shutdownTimeout);
 
-                try
-                {
-                    // Can be canceled by DisposeAsync or the shutdown timeout.
-                    await connection.ShutdownAsync(cts.Token).ConfigureAwait(false);
+                    try
+                    {
+                        // Can be canceled by DisposeAsync or the shutdown timeout.
+                        await connection.ShutdownAsync(cts.Token).ConfigureAwait(false);
+                    }
+                    catch
+                    {
+                        // Ignore connection shutdown failures. connection.ShutdownAsync makes sure it's an "expected"
+                        // exception.
+                    }
                 }
-                catch
-                {
-                    // Ignore connection shutdown failures. connection.ShutdownAsync makes sure it's an "expected"
-                    // exception.
-                }
+
+                await connection.DisposeAsync().ConfigureAwait(false);
             }
-
-            await connection.DisposeAsync().ConfigureAwait(false);
-            lock (_mutex)
+            finally
             {
-                if (--_detachedConnectionCount == 0 && _shutdownTask is not null)
+                // The decrement must run on every path from the matching _detachedConnectionCount++; otherwise an
+                // unexpected exception (a protocol connection violating the IAsyncDisposable contract, OOM, etc.)
+                // would leave the counter high and hang ShutdownAsync/DisposeAsync on _detachedConnectionsTcs.Task.
+                lock (_mutex)
                 {
-                    _detachedConnectionsTcs.SetResult();
+                    Debug.Assert(_detachedConnectionCount > 0);
+                    if (--_detachedConnectionCount == 0 && _shutdownTask is not null)
+                    {
+                        _detachedConnectionsTcs.SetResult();
+                    }
                 }
             }
         }
