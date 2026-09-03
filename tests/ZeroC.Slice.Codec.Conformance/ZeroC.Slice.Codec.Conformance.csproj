@@ -1,0 +1,45 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    The Slice codec conformance test executable (slice-codec-csharp) for the slice-conformance controller.
+    See README.md in this directory. The Slice definitions come from a checkout of slice-conformance-tests.
+  -->
+  <Import Project="../../src/IceRpc.Slice.Tools/IceRpc.Slice.Tools.props" />
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <AssemblyName>slice-codec-csharp</AssemblyName>
+    <RootNamespace>ZeroC.Slice.Codec.Conformance</RootNamespace>
+    <!-- Missing XML comment for publicly visible type or member. -->
+    <NoWarn>CS1591</NoWarn>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <!--
+      The slice-conformance-tests checkout that provides slice/Conformance.slice. A property passed on the command
+      line cannot be modified here, so the normalized value goes to a private property.
+    -->
+    <SliceConformanceDir Condition="'$(SliceConformanceDir)' == ''">$(MSBuildThisFileDirectory)../../../slice-conformance-tests/</SliceConformanceDir>
+    <_SliceConformanceDir>$([MSBuild]::EnsureTrailingSlash('$(SliceConformanceDir)'))</_SliceConformanceDir>
+  </PropertyGroup>
+
+  <!-- Only generate the Slice codec code; no IceRPC proxies or services. -->
+  <ItemDefinitionGroup>
+    <SliceFile>
+      <IceRpc>false</IceRpc>
+    </SliceFile>
+  </ItemDefinitionGroup>
+
+  <ItemGroup>
+    <SliceFile Include="$(_SliceConformanceDir)slice/Conformance.slice" />
+    <!-- The WellKnownTypes definitions. -->
+    <SliceDirectory Include="../../slice" />
+    <ProjectReference Include="../../src/ZeroC.Slice.Codec/ZeroC.Slice.Codec.csproj" />
+  </ItemGroup>
+
+  <Target Name="CheckSliceConformanceDir" BeforeTargets="Slicec;CoreCompile">
+    <Error
+      Condition="!Exists('$(_SliceConformanceDir)slice/Conformance.slice')"
+      Text="Cannot find slice/Conformance.slice in '$(_SliceConformanceDir)'. Check out slice-conformance-tests next to this repository or build with -p:SliceConformanceDir=&lt;path&gt;." />
+  </Target>
+
+  <Import Project="../../src/IceRpc.Slice.Tools/IceRpc.Slice.Tools.targets" />
+</Project>
